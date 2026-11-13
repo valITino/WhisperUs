@@ -14,9 +14,6 @@ cloud that carries it between your two phones cannot read it.
 
 The app lives here: **https://valitino.github.io/WhisperUs/**
 
-> Until the room's cloud is connected, that address shows one page that says so. See
-> "For the owner of the cloud" below.
-
 ## Put it on your Android phone
 
 1. Open the link above in **Chrome**.
@@ -161,28 +158,34 @@ search engines to stay away.
 
 ### Connecting the cloud (once)
 
+This room's cloud is connected: the project is called `whisperus` and lives in Zurich
+(set up on 13 November 2026, steps 1, 2, 4, 6 and 7). **Two switches are yours to flip,
+steps 3 and 5.** The whole list stays here for whoever sets up a room of their own.
+
 1. **Supabase:** create a new project (the free plan is enough) in a region near you.
 2. **Database:** apply the three files in `supabase/migrations`, in order
    (`0001_room.sql`, `0002_envelopes.sql`, `0003_push.sql`), in the SQL editor or with the
-   Supabase CLI. Before that, enable the extensions `pg_cron` and `pg_net` (Database,
-   Extensions).
+   Supabase CLI. The first file switches on the two extensions it needs.
 3. **Logins:** Authentication, Sign In / Providers: turn on **Allow anonymous sign-ins**.
    The app has no email or password. Each device gets its own invisible login, and people
-   are recognised by their name and PIN.
+   are recognised by their name and PIN. Without this switch nobody can open or join the room.
 4. **The app:** put the project's address and its **publishable** key into
    `.env.production` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`). Both are public by
    design. Never the secret key.
 5. **GitHub:** Settings, Pages, Build and deployment, Source: **GitHub Actions**. Every
    change on `main` is then published by itself.
-6. **Check the rules:** paste `supabase/tests/security_test.sql` and
-   `supabase/tests/seal_test.sql` into the SQL editor. Each prints a report and rolls
-   itself back: every line should start with `ok`.
+6. **Check the rules:** paste `supabase/tests/seal_test.sql` and
+   `supabase/tests/security_test.sql` into the SQL editor. Each prints a report and rolls
+   itself back: every line should start with `ok`. To check that the live database is
+   what the files say, statement for statement, run `supabase/tests/local/digest.sql`
+   there and compare with `bash supabase/tests/local/run.sh digest`: the ten lines must
+   be the same.
 7. **Keep it awake:** a free project pauses after a week without activity. Run once in
    the SQL editor, with the same address and publishable key:
    `select private.keepalive_setup('https://<project>.supabase.co', '<publishable key>');`
    A GitHub workflow pings as well.
 
-Then open the room. Decide together who does that: whoever opens it is its admin.
+Then open the room. Whoever opens it is its admin.
 
 ### Switching notifications on (once)
 
@@ -227,7 +230,8 @@ npm run e2e:pwa     # ... for the installed-app tests: offline start, update not
 npm run build       # the production build (talks to the cloud named in .env.production)
 npm run build:push  # the notification function as one file for deploying
 npm run icons       # regenerate the app icons
-bash supabase/tests/local/run.sh   # the database rules against a local Postgres
+bash supabase/tests/local/run.sh          # the database rules against a local Postgres
+bash supabase/tests/local/run.sh digest   # a fingerprint of the schema, to compare with the live project
 ```
 
 Development never touches real data: `npm run dev` and all tests use a pretend cloud

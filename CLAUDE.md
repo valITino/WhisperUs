@@ -39,7 +39,8 @@ npm run build:test  # production build wired to an address that leads nowhere
 npm run e2e:pwa     # offline, update note, install, push and lock against that build
 npm run build       # production build (talks to the cloud in .env.production, if any)
 npm run build:push  # bundles the push Edge Function into one file for deploying
-bash supabase/tests/local/run.sh   # the migrations and their rule tests on a local Postgres
+bash supabase/tests/local/run.sh          # the migrations and their rule tests on a local Postgres
+bash supabase/tests/local/run.sh digest   # a fingerprint of the schema, to compare with the live project
 ```
 
 Run several dev servers side by side with `WHISPERUS_PORT=5180 npm run dev` (the e2e
@@ -104,9 +105,13 @@ configs read the same variable). After changing `src/data/fake/cloudCore.ts` or
 - The real backend is Supabase (`supabaseBackend.ts`). **Never run tests or experiments
   against a real project**, and never point this app at another project's data.
   `.env.production` names this room's own project or nothing at all.
-- Schema changes go through a new migration the owner approves. The three existing
-  migrations may still be edited until the first real project is set up; after that they
-  are history.
+- The three migrations are applied to the live project (13 November 2026) and are
+  history: never edit them. A change to the database is a new migration, applied to the
+  live project only with the owner's go, and checked afterwards by comparing
+  `bash supabase/tests/local/run.sh digest` with `supabase/tests/local/digest.sql` run on
+  the live project (the ten lines must be the same).
+- The only tests that may run on the live project are the repository's own SQL rule tests
+  (`supabase/tests/*.sql`): they build throwaway rows and roll themselves back.
 - Secrets never appear in the repository, a test or a chat. The publishable key is public
   by design; the secret key never leaves Supabase.
 

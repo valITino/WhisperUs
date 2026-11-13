@@ -238,10 +238,10 @@ as bcrypt hashes in a schema the API cannot see.
 
 **One admin.** Whoever opens the room is its admin: invites, restore codes, pausing and
 logging out the partner's seat. **The admin opens no envelope.** None of the admin's tools
-touch `envelopes`, `keys` or `media`, and the People page says so. Who should open the
-room is for the two of them to decide. It can be argued either way: she, so that the one
-with more to protect holds the keys to the room; he, so that she never has to deal with
-the technical side.
+touch `envelopes`, `keys` or `media`, and the People page says so. Who opens the room
+can be argued either way: she, so that the one with more to protect holds the keys to the
+room; he, so that she never has to deal with the technical side. They chose the second:
+he opens it, and he owns the cloud project as well.
 
 **No roles.** FoodwishUs had a cook and an eater. Here there are two people. Either can
 seal, either can answer. `tests/e2e/pairing.spec.ts` has him open the room and the other
@@ -259,10 +259,16 @@ plays a stranger against the database.
 public. The address of the cloud and its publishable key are in the build by design: what
 protects the room is the database's rules and the seal, never a hidden address.
 
-**A build without a cloud says so.** Until the room's own Supabase project exists,
-`.env.production` is empty and the published app shows one page ("Not connected yet").
-It never falls back to another project. A unit test guards the file: one cloud completely
+**A build without a cloud says so.** A build made with no address in `.env.production`
+shows one page ("Not connected yet") instead of a start screen whose buttons fail. It
+never falls back to another project. A unit test guards the file: one cloud completely
 or none at all, and never a secret key.
+
+**The live database is checked against the files.** The migrations reached the live
+project through a connector, in parts. So that this proves nothing by itself, a query
+(`supabase/tests/local/digest.sql`) fingerprints every function, right, policy, trigger,
+index and check; the same ten lines on the live project and on a local database built
+from the files mean the two are the same, statement for statement.
 
 **Notifications without copied secrets.** The shared secret between the database triggers
 and the push function, and the VAPID key pair, live in a table only the service role can

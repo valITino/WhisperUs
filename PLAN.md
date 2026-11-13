@@ -46,11 +46,13 @@ it together before the next one starts.
 
 ## Open right now
 
-- **The cloud is not connected yet.** The app is built and tested against the pretend
-  cloud and against a local Postgres. Creating the Supabase project, applying the three
-  migrations and putting the address into `.env.production` is the next step (README,
-  "Connecting the cloud"). Until then the published address shows one page that says so.
-- **Who opens the room** is for the two of you to decide (DECISIONS.md, section 8).
+- **Two switches before the first evening.** The cloud is connected (13 November 2026:
+  the project `whisperus` in Zurich, the three migrations, notifications, the keep-alive;
+  the live database matches the files, and the seal test passes on it). Still to flip, by
+  the owner: **Allow anonymous sign-ins** in Supabase, and **GitHub Pages** with source
+  "GitHub Actions" (README, "Connecting the cloud", steps 3 and 5).
+- **He opens the room**, so he is its admin. That opens no envelope (DECISIONS.md,
+  section 8).
 - **A real phone.** Recording, the lock when the app goes out of sight, and a real
   notification on a real lock screen have been seen in tests, not yet on your phones.
 

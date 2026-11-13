@@ -189,17 +189,23 @@ five minutes.
 
 ## What is deployed right now
 
-Nothing yet. The room's Supabase project does not exist at the time of writing (PLAN.md,
-"Open right now"). When it does, note here what was applied and deployed, and what the
-checks answered.
+Switched on for the live project (`whisperus`, Zurich) on 13 November 2026:
 
-One way to deploy without copying anything by hand is a one-line loader that imports this
-folder's `index.ts` from GitHub at one fixed commit, so that what runs is exactly what was
-tested:
+- The three migrations are applied. They went in through a connector in thirteen parts
+  (the migration history in the dashboard lists them as `room_01_…` to `push_03_…`); the
+  schema fingerprint (`supabase/tests/local/digest.sql`) is the same on the live project
+  and on a database built from the files, and `seal_test.sql` passed there with 29 of 29.
+- The function `push` is deployed with JWT verification off, as a one-line loader that
+  imports this folder's `index.ts` from GitHub at one fixed commit, so that what runs is
+  exactly what was tested and nothing was copied by hand:
 
-```ts
-import 'https://raw.githubusercontent.com/valITino/WhisperUs/<commit>/supabase/functions/push/index.ts'
-```
+  ```ts
+  import 'https://raw.githubusercontent.com/valITino/WhisperUs/6ff70f22006622cd55514fd9846a724d80f43970/supabase/functions/push/index.ts'
+  ```
+
+- `private.push_setup` was run and the keys were made. The function answered `200` to
+  `init`, and `401 wrong_secret` to a call without the secret and to one with a wrong one.
+- A real notification on a real phone is still to be seen.
 
 To ship a change to the function: commit and push it, then deploy the loader again with the
 new commit in the address. Pasting the single file from `npm run build:push` works too.

@@ -4,6 +4,8 @@
 #
 #   supabase/tests/local/run.sh            all tests
 #   supabase/tests/local/run.sh push       only tests whose file name contains "push"
+#   supabase/tests/local/run.sh digest     no tests: print a fingerprint of the schema, to
+#                                          compare with a live project (digest.sql)
 #
 # Needs PostgreSQL 15 or newer installed locally (initdb, pg_ctl, psql; set PG_BIN if
 # they are not on the PATH or under /usr/lib/postgresql). The database lives in a
@@ -48,6 +50,12 @@ for migration in "$root"/supabase/migrations/*.sql; do
   sed -E '/^create extension /d' "$migration" | "${sql[@]}" -v ON_ERROR_STOP=1 >/dev/null || { echo "FAILED to apply $(basename "$migration")" >&2; exit 1; }
   echo "applied $(basename "$migration")"
 done
+
+# "digest": print the fingerprint of what the migrations made, to compare with a live project.
+if [ "${1:-}" = digest ]; then
+  "${sql[@]}" -A -F ' | ' -f "$here/digest.sql"
+  exit 0
+fi
 
 status=0
 for test in "$root"/supabase/tests/*${1:-}*.sql; do

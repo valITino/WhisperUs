@@ -1,0 +1,48 @@
+{
+  "name": "whisperus",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "WhisperUs. U tell. I listen. A private room for two.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:test": "VITE_SUPABASE_URL=https://project.supabase.test VITE_SUPABASE_KEY=sb_publishable_for_tests_only npm run build",
+    "build:push": "node tools/build-push.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "e2e:pwa": "playwright test --config playwright.pwa.config.ts",
+    "icons": "node tools/make-icons.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/bodoni-moda": "^5.3.0",
+    "@fontsource-variable/figtree": "^5.3.0",
+    "@fontsource/la-belle-aurore": "^5.3.0",
+    "@supabase/supabase-js": "^2.119.0",
+    "date-fns": "^4.4.0",
+    "dexie": "^4.4.7",
+    "dexie-react-hooks": "^4.4.0",
+    "motion": "^14.11.1",
+    "qrcode-generator": "^2.0.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "esbuild": "^0.28.2",
+    "fake-indexeddb": "^6.2.8",
+    "sharp": "^0.35.5",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.7",
+    "vitest": "^5.1.0"
+  }
+}

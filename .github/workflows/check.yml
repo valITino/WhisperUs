@@ -1,0 +1,31 @@
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Types
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Two-phone tests
+        run: |
+          npx playwright install --with-deps chromium
+          npm run e2e
+      - name: Installed-app test (offline start, update note, notifications)
+        run: |
+          npm run build:test
+          npm run e2e:pwa
+      - name: Production build
+        run: npm run build

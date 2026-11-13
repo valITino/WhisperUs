@@ -1,0 +1,12 @@
+node_modules
+dist
+.env.local
+.env.*.local
+test-results
+playwright-report
+*.log
+.DS_Store
+
+# pictures from tools/shots.mjs, and scratch work
+shots
+.scratch

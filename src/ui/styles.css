@@ -1,0 +1,253 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/bodoni-moda/opsz.css';
+@import '@fontsource-variable/bodoni-moda/opsz-italic.css';
+@import '@fontsource-variable/figtree/wght.css';
+@import '@fontsource/la-belle-aurore/latin-400.css';
+
+/* ------------------------------------------------------------------ tokens --
+   Letters after dark.
+   By day: lilac writing paper and aubergine ink. After dark: a room lit by one
+   candle. Amber is the candle (the one thing to press), red is sealing wax (what is
+   sealed, and nothing else). Flat colour and hairlines; no gradients, no glass.
+   The envelope and its seal are the only objects that are drawn like things. */
+@theme {
+  --font-display: 'Bodoni Moda Variable', 'Bodoni Moda', 'Didot', Georgia, serif;
+  --font-sans: 'Figtree Variable', 'Figtree', system-ui, sans-serif;
+  /* Handwriting: only for what a person wrote on the outside of an envelope. */
+  --font-script: 'La Belle Aurore', 'Bradley Hand', cursive;
+
+  /* Surfaces and ink (these flip after dark) */
+  --color-ground: #f4eef4;
+  --color-surface: #fdfafc;
+  --color-haze: #e9dcea;
+  --color-ink: #2c1b33;
+  --color-ink-soft: #655170;
+  --color-line: #2c1b3324;
+  --color-line-strong: #2c1b3352;
+
+  /* The candle: the main thing to press on a screen. */
+  --color-candle: #f0b254;
+  --color-candle-edge: #c98a2b;
+  --color-on-candle: #2c1b33;
+  /* Accent for text and small marks: berry ink by day, candle-gold after dark. */
+  --color-accent: #8a2b5c;
+  /* Sealing wax: only for seals and for what is sealed. */
+  --color-wax: #b3283c;
+  --color-wax-edge: #861a2b;
+  --color-on-wax: #fff4ea;
+  /* Calm: "all good", "in the cloud". */
+  --color-moss: #b9c9a6;
+  --color-moss-ink: #4a5f3d;
+  /* A hint, a "waiting". */
+  --color-gold: #f6e3b0;
+  --color-gold-ink: #75560f;
+
+  /* Fixed colours for drawn things: the same in both themes */
+  --color-art-outline: #2c1b33;
+  --color-art-paper: #f7efe4;
+  --color-art-paper-shade: #e8d9c8;
+  --color-art-wax: #b3283c;
+  --color-art-wax-deep: #861a2b;
+  --color-art-wax-light: #d4566a;
+  --color-art-candle: #f0b254;
+  --color-art-flame: #f7d58a;
+  --color-art-plum: #5a3766;
+
+  --shadow-float: 0 14px 30px -10px #2c1b3345, 0 2px 6px #2c1b331a;
+  --shadow-paper: 0 6px 14px -6px #2c1b3340, 0 1px 2px #2c1b331a;
+
+  --radius-card: 18px;
+  --radius-field: 12px;
+  --radius-sheet: 26px;
+  --radius-paper: 5px;
+
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-2xl: 2.125rem;
+  --text-3xl: 2.75rem;
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* After dark: aubergine night, cream ink, one candle. */
+[data-theme='dark'] {
+  /* Native controls (time fields, scrollbars) follow. */
+  color-scheme: dark;
+  --color-ground: #1b1220;
+  --color-surface: #261a2c;
+  --color-haze: #38263f;
+  --color-ink: #f6ecdf;
+  --color-ink-soft: #c9b6c7;
+  --color-line: #f6ecdf21;
+  --color-line-strong: #f6ecdf4d;
+
+  --color-candle: #f2b65c;
+  --color-candle-edge: #b97e25;
+  --color-accent: #f5c27a;
+  --color-wax: #c5384b;
+  --color-wax-edge: #8f2132;
+  --color-moss: #7f946f;
+  --color-moss-ink: #c3d6b2;
+  --color-gold: #e9cf88;
+  --color-gold-ink: #f1dc9d;
+
+  --shadow-float: 0 0 0 1px #f5c27a1f, 0 16px 36px -12px #000000b3, 0 0 30px -10px #f2b65c33;
+  --shadow-paper: 0 8px 18px -8px #000000a6, 0 1px 2px #00000066;
+}
+
+/* Text on a haze ground (the tab bar, notes): the soft ink is one step deeper there,
+   so small labels keep AA contrast. After dark needs no help. */
+:root:not([data-theme='dark']) .bg-haze {
+  --color-ink-soft: #5a4665;
+}
+
+/* -------------------------------------------------------------------- base -- */
+@layer base {
+  html {
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    font-size: var(--text-base);
+    line-height: 1.5;
+    font-weight: 450;
+    overscroll-behavior-y: none;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 560;
+    line-height: 1.1;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+  }
+  button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  /* A page title that receives focus after a page change (so screen readers announce it)
+     is not a control and needs no ring. */
+  h1[tabindex='-1']:focus {
+    outline: none;
+  }
+  ::selection {
+    background: var(--color-haze);
+  }
+}
+
+/* --------------------------------------------------------------- utilities -- */
+
+/* The page frame: a phone-width column, centred on bigger screens. */
+@utility app-column {
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
+}
+
+/* The fine inner rule of a correspondence card: marks something written for the other person. */
+@utility ruled {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 38%, transparent);
+    border-radius: calc(var(--radius-card) - 6px);
+    pointer-events: none;
+  }
+}
+
+/* The top edge of the tab bar: the flap of an envelope, its point under the seal. */
+@utility flap-top {
+  --flap: 14px;
+  padding-top: var(--flap);
+  clip-path: polygon(0 var(--flap), 50% 0, 100% var(--flap), 100% 100%, 0 100%);
+}
+
+/* What a person wrote by hand on the outside of an envelope. */
+@utility handwritten {
+  font-family: var(--font-script);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+/* Whispered: the display face in italics, for the app's own quiet lines. */
+@utility whispered {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 480;
+  letter-spacing: -0.005em;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* A candle flame, breathing. Used by the loader and nowhere else. */
+@keyframes flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(-1.5deg);
+    opacity: 0.95;
+  }
+  40% {
+    transform: scale(1.06, 0.96) rotate(2deg);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(0.96, 1.05) rotate(-0.5deg);
+    opacity: 0.9;
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-candle) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-candle) 0%, transparent);
+  }
+}
+
+/* The recorder's level bars while a voice note is being taken. */
+@keyframes listen {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}

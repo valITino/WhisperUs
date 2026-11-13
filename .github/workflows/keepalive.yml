@@ -1,0 +1,37 @@
+name: Keep Supabase awake
+
+# Free Supabase projects pause after about a week without activity. This calls a
+# harmless function every two days. It reads the address and the publishable key
+# from .env.production (public by design: the key can read or write nothing by
+# itself) and does nothing while no cloud is connected yet.
+#
+# Note: GitHub switches off scheduled workflows in a repository that has seen no
+# activity for 60 days. It emails first; one click re-enables them.
+
+on:
+  schedule:
+    - cron: '23 5 */2 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ping the database
+        run: |
+          set -a
+          . ./.env.production
+          set +a
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_KEY" ]; then
+            echo "No cloud connected yet. Nothing to keep awake."
+            exit 0
+          fi
+          curl --fail-with-body -sS -X POST \
+            "$VITE_SUPABASE_URL/rest/v1/rpc/ping" \
+            -H "apikey: $VITE_SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'

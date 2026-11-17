@@ -4,9 +4,12 @@ import { describe, expect, it } from 'vitest'
 import { PUSH_TYPES as APP_TYPES } from '../../src/data/backend'
 import {
   audience,
+  checkinDue,
   envelopeEvent,
   keyEvent,
   langOf,
+  MATCH_QUIET_MS,
+  matchEvent,
   parseEvent,
   plan,
   PUSH_TYPES,
@@ -14,6 +17,7 @@ import {
   routeFor,
   SAME_OPENING_MS,
   whenWords,
+  wishEvent,
   words,
   worthTelling,
   type Device,
@@ -23,6 +27,7 @@ import {
   type PushEvent,
   type PushType,
   type Room,
+  type WishOutside,
 } from '../../supabase/functions/push/logic'
 
 // The rules of push notifications: which changes are worth telling, to whom, in which
@@ -48,6 +53,14 @@ const sealed = (changes: Partial<Outside> = {}): Outside => ({ deleted: false, a
 /** The same envelope with two layers open for Leo since a moment ago. */
 const opened = (changes: Partial<Outside> = {}): Outside => sealed({ waiting: 2, openedAt: ago(2000), ...changes })
 const event = (type: PushType, actorId = MIA): PushEvent => ({ type, householdId: H, actorId, envelopeId: ENVELOPE })
+const WISH = '7c9e6679-7425-40de-944b-e07fc1f90ae7'
+/** The three kinds that are about an envelope. */
+const ENVELOPE_TYPES = ['sealed', 'opened', 'answered'] as const
+/** News about Mia's wish, about the list, and the reminder. */
+const wishNews = (type: 'wished' | 'decided', actorId = MIA): PushEvent => ({ type, householdId: H, actorId, wishId: WISH })
+const plainNews = (type: 'matched' | 'checkin', actorId = MIA): PushEvent => ({ type, householdId: H, actorId })
+/** Mia's wish, said a minute ago, not answered yet. */
+const wish = (changes: Partial<WishOutside> = {}): WishOutside => ({ deleted: false, authorId: MIA, createdAt: ago(MINUTE), answeredAt: null, ...changes })
 const room = (changes: Partial<Room> = {}): Room => ({ people: [mia, leo], devices: [device(MIA, 'mia-phone'), device(LEO, 'leo-phone')], envelope: sealed(), ...changes })
 
 describe('the list of kinds', () => {
@@ -55,14 +68,36 @@ describe('the list of kinds', () => {
     expect([...PUSH_TYPES]).toEqual([...APP_TYPES])
   })
 
-  it('is the same in the database: its checks know exactly these three, and its triggers send no other', () => {
-    const sql = readFileSync(join(__dirname, '../../supabase/migrations/0003_push.sql'), 'utf8')
-    const lists = [...sql.matchAll(/array\['sealed'[^\]]*\]/g)].map(([list]) => [...list.matchAll(/'(\w+)'/g)].map(([, kind]) => kind))
-    expect(lists.length).toBeGreaterThanOrEqual(2)
-    for (const list of lists) expect(list).toEqual([...PUSH_TYPES])
-    // Everything the triggers and the minute job can hand to send_push.
-    const sent = new Set([...sql.matchAll(/perform private\.send_push\('(\w+)'/g)].map(([, kind]) => kind))
+  it('is the same in the database: its checks know exactly these, and its triggers send no other', () => {
+    const first = readFileSync(join(__dirname, '../../supabase/migrations/0003_push.sql'), 'utf8')
+    const later = readFileSync(join(__dirname, '../../supabase/migrations/0004_closer.sql'), 'utf8')
+    const listsIn = (sql: string) => [...sql.matchAll(/array\['sealed'[^\]]*\]/g)].map(([list]) => [...list.matchAll(/'(\w+)'/g)].map(([, kind]) => kind))
+    // The first migration knew the three kinds about envelopes. The later one replaces both lists with all of them.
+    expect(listsIn(first).length).toBeGreaterThanOrEqual(2)
+    for (const list of listsIn(first)) expect(list).toEqual([...ENVELOPE_TYPES])
+    expect(listsIn(later).length).toBeGreaterThanOrEqual(2)
+    for (const list of listsIn(later)) expect(list).toEqual([...PUSH_TYPES])
+    // Everything the triggers and the minute jobs can hand to the function.
+    const sent = new Set([...[...first.matchAll(/perform private\.send_push\('(\w+)'/g)], ...[...later.matchAll(/perform private\.send_news\(jsonb_build_object\('type', '(\w+)'/g)]].map(([, kind]) => kind))
     expect([...sent].sort()).toEqual([...PUSH_TYPES].sort())
+  })
+
+  it('the later kinds are sent in a shape the function can read too', () => {
+    const later = readFileSync(join(__dirname, '../../supabase/migrations/0004_closer.sql'), 'utf8')
+    // jsonb_build_object('type', 'wished', 'household_id', new.household_id, …): every other argument is a name.
+    const built = [...later.matchAll(/perform private\.send_news\(jsonb_build_object\(([^)]*)\)\)/g)].map(([, args]) =>
+      args
+        .split(',')
+        .map((part) => part.trim())
+        .filter((_, index) => index % 2 === 0)
+        .map((name) => name.replaceAll("'", '')),
+    )
+    expect(built.length).toBe(4)
+    for (const names of built) {
+      const body: Record<string, string> = { type: names.includes('wish_id') ? 'wished' : 'matched', household_id: H, actor_id: MIA, wish_id: WISH }
+      expect(names.every((name) => name in body), names.join(',')).toBe(true)
+      expect(parseEvent(Object.fromEntries(names.map((name) => [name, body[name]])))).not.toBeNull()
+    }
   })
 
   it('the database sends an event the function can read', () => {
@@ -167,9 +202,25 @@ describe('old news is no news', () => {
   })
 
   it('keeps quiet when the envelope was taken back or never existed', () => {
-    for (const type of PUSH_TYPES) {
+    for (const type of ENVELOPE_TYPES) {
       expect(worthTelling(event(type), null, NOW)).toBe(false)
       expect(worthTelling(event(type), opened({ deleted: true, repliedAt: ago(1000) }), NOW)).toBe(false)
+    }
+  })
+
+  it('a wish is told while it waits, its answer while it is fresh, and neither once it was taken back', () => {
+    expect(worthTelling(wishNews('wished'), null, NOW, wish())).toBe(true)
+    expect(worthTelling(wishNews('decided', LEO), null, NOW, wish({ answeredAt: ago(1000) }))).toBe(true)
+    // Answered meanwhile: "a wish for you" would be old news.
+    expect(worthTelling(wishNews('wished'), null, NOW, wish({ answeredAt: ago(1000) }))).toBe(false)
+    expect(worthTelling(wishNews('wished'), null, NOW, wish({ createdAt: ago(49 * HOUR) }))).toBe(false)
+    expect(worthTelling(wishNews('decided', LEO), null, NOW, wish({ answeredAt: ago(49 * HOUR) }))).toBe(false)
+    // Nobody is told about their own doing.
+    expect(worthTelling(wishNews('wished', LEO), null, NOW, wish())).toBe(false)
+    expect(worthTelling(wishNews('decided', MIA), null, NOW, wish({ answeredAt: ago(1000) }))).toBe(false)
+    for (const type of ['wished', 'decided'] as const) {
+      expect(worthTelling(wishNews(type, type === 'wished' ? MIA : LEO), null, NOW, null)).toBe(false)
+      expect(worthTelling(wishNews(type, type === 'wished' ? MIA : LEO), null, NOW, wish({ deleted: true, answeredAt: ago(1000) }))).toBe(false)
     }
   })
 
@@ -307,7 +358,9 @@ describe('the words', () => {
           expect(all, all).not.toMatch(/[—–→·ß]/)
           expect(title.length, title).toBeLessThanOrEqual(30)
           expect(body.length, body).toBeLessThanOrEqual(120)
-          expect(body, body).toContain('Mia')
+          // A reminder to check in is for oneself: it names nobody.
+          if (type === 'checkin') expect(body, body).not.toContain('Mia')
+          else expect(body, body).toContain('Mia')
           // Sentence case: no shouting, no Title Case Like This.
           expect(title, title).not.toMatch(/[A-ZÄÖÜ]{3,}/)
           expect(title, title).not.toMatch(/!/)
@@ -319,7 +372,7 @@ describe('the words', () => {
   it('reads the same to anybody who picks the phone up: nothing that hints at what is inside', () => {
     // No word about heat, mood or kind. A notification about a letter, and that is all.
     const all = (['en', 'de'] as const).flatMap((lang) => PUSH_TYPES.map((type) => words(type, lang, { actor: 'Mia', when: '' }))).map(({ title, body }) => `${title} ${body}`).join(' ').toLowerCase()
-    for (const hint of ['hot', 'heiss', 'secret', 'geheim', 'confess', 'beicht', 'fantas', 'sex', 'naught', 'dirty', 'voice', 'stimme', 'whisper', 'flüster']) expect(all).not.toContain(hint)
+    for (const hint of ['hot', 'heiss', 'secret', 'geheim', 'confess', 'beicht', 'fantas', 'sex', 'naught', 'dirty', 'voice', 'stimme', 'whisper', 'flüster', 'kink', 'lust', 'desire', 'mood', 'stimmung', 'yes', 'no ', 'nein', 'match']) expect(all).not.toContain(hint)
   })
 })
 
@@ -383,5 +436,94 @@ describe('from one event to the messages', () => {
   it('fits into one push message with room to spare', () => {
     const [delivery] = plan(event('sealed'), room({ people: [{ ...mia, name: 'Ü'.repeat(40) }, { ...leo, lang: 'de' }], envelope: sealed({ openMode: 'at', opensAt: '2026-12-24T19:00:00Z' }) }), NOW)
     expect(new TextEncoder().encode(JSON.stringify(delivery.message)).length).toBeLessThan(1000)
+  })
+})
+
+describe('wishes, the list and the reminder', () => {
+  it('a new wish is news, and so is its answer; rewording either is not', () => {
+    expect(wishEvent(null, { deleted: false, decision: null })).toBe('wished')
+    expect(wishEvent({ deleted: false, decision: null }, { deleted: false, decision: null })).toBeNull()
+    expect(wishEvent({ deleted: false, decision: null }, { deleted: false, decision: 'later' })).toBe('decided')
+    // The same decision with other words around it.
+    expect(wishEvent({ deleted: false, decision: 'later' }, { deleted: false, decision: 'later' })).toBeNull()
+    // A "not now" that becomes a "yes".
+    expect(wishEvent({ deleted: false, decision: 'later' }, { deleted: false, decision: 'yes' })).toBe('decided')
+    // An answer without a decision, to a fantasy that may stay one, is an answer.
+    expect(wishEvent({ deleted: false, decision: null }, { deleted: false, decision: '' })).toBe('decided')
+    expect(wishEvent({ deleted: false, decision: 'yes' }, { deleted: true, decision: null })).toBeNull()
+    expect(wishEvent(null, { deleted: true, decision: null })).toBeNull()
+  })
+
+  it('something in common is told when an answer becomes open and meets one, and not twenty times in a row', () => {
+    const now = NOW.getTime()
+    expect(matchEvent(true, true, null, now)).toBe('matched')
+    expect(matchEvent(true, false, null, now)).toBeNull()
+    // Changing the strength of an answer that was open already is no news.
+    expect(matchEvent(false, true, null, now)).toBeNull()
+    expect(matchEvent(true, true, now - MATCH_QUIET_MS + 1, now)).toBeNull()
+    expect(matchEvent(true, true, now - MATCH_QUIET_MS, now)).toBe('matched')
+  })
+
+  it('a reminder is due at the two minutes somebody chose, on the room\'s clock, and only if they switched it on', () => {
+    const at = new Date('2026-11-17T20:00:30Z') // 21:00 in Zurich
+    const prefs = { checkin: { remind: true, times: ['08:30', '21:00'] } }
+    expect(checkinDue(prefs, at)).toBe(true)
+    expect(checkinDue(prefs, new Date('2026-11-17T07:30:00Z'))).toBe(true)
+    expect(checkinDue(prefs, new Date('2026-11-17T20:01:00Z'))).toBe(false)
+    // Summer: Zurich is two hours ahead.
+    expect(checkinDue(prefs, new Date('2026-07-01T19:00:00Z'))).toBe(true)
+    expect(checkinDue({ checkin: { remind: false, times: ['08:30', '21:00'] } }, at)).toBe(false)
+    for (const odd of [null, undefined, {}, { checkin: 'soon' }, { checkin: { remind: true } }, { checkin: { remind: 'yes', times: ['21:00'] } }, { checkin: { remind: true, times: '21:00' } }]) expect(checkinDue(odd, at)).toBe(false)
+    // Only two moments a day, whatever else was slipped into the list.
+    expect(checkinDue({ checkin: { remind: true, times: ['08:30', '12:00', '21:00'] } }, at)).toBe(false)
+  })
+
+  it('reads the events of the later kinds, and refuses one that names no wish', () => {
+    expect(parseEvent({ type: 'wished', household_id: H, actor_id: MIA, wish_id: WISH })).toEqual(wishNews('wished'))
+    expect(parseEvent({ type: 'decided', household_id: H, actor_id: LEO, wish_id: WISH })).toEqual(wishNews('decided', LEO))
+    expect(parseEvent({ type: 'wished', household_id: H, actor_id: MIA })).toBeNull()
+    expect(parseEvent({ type: 'wished', household_id: H, actor_id: MIA, envelope_id: ENVELOPE })).toBeNull()
+    expect(parseEvent({ type: 'matched', household_id: H, actor_id: LEO, item: 'soft.massage' })).toEqual(plainNews('matched', LEO))
+    expect(parseEvent({ type: 'checkin', household_id: H, actor_id: MIA })).toEqual(plainNews('checkin'))
+    expect(parseEvent({ type: 'sealed', household_id: H, actor_id: MIA })).toBeNull()
+  })
+
+  it('a wish reaches the other one and opens the wish; the words say who, never what', () => {
+    const out = plan(wishNews('wished'), room({ envelope: null, wish: wish() }), NOW)
+    expect(out).toEqual([
+      {
+        device: device(LEO, 'leo-phone'),
+        message: { type: 'wished', title: 'A wish for you', body: 'Mia has a wish for you.', tag: `wish-${WISH}`, url: `/wishes/${WISH}` },
+        urgency: 'normal',
+        topic: WISH.replaceAll('-', ''),
+        ttl: 48 * 3600,
+      },
+    ])
+    const answered = plan(wishNews('decided', LEO), room({ envelope: null, wish: wish({ answeredAt: ago(1000) }) }), NOW)
+    expect(answered.map((d) => [d.device.memberId, d.message.body, d.message.url])).toEqual([[MIA, 'Leo answered your wish.', `/wishes/${WISH}`]])
+    expect(plan(wishNews('wished'), room({ envelope: null, wish: null }), NOW)).toEqual([])
+  })
+
+  it('something in common is told to the other one and leads to the list', () => {
+    const out = plan(plainNews('matched', LEO), room({ envelope: null }), NOW)
+    expect(out.map((d) => [d.device.memberId, d.message.title, d.message.body, d.message.tag, d.message.url, d.topic])).toEqual([[MIA, 'Something in common', 'You and Leo have something new in common.', 'list', '/list', 'list']])
+  })
+
+  it('the reminder goes to the one who asked for it, on their devices only, and does not wait for hours', () => {
+    const devices = [device(MIA, 'mia-phone'), device(MIA, 'mia-tablet', ['checkin']), device(LEO, 'leo-phone')]
+    expect(audience(plainNews('checkin'), [mia, leo], devices).map((a) => a.device.endpoint)).toEqual(['https://push.example.test/mia-phone'])
+    const out = plan(plainNews('checkin'), room({ envelope: null, devices }), NOW)
+    expect(out).toEqual([
+      {
+        device: device(MIA, 'mia-phone'),
+        message: { type: 'checkin', title: 'A moment for you', body: 'How are you right now?', tag: 'checkin', url: '/checkin' },
+        urgency: 'normal',
+        topic: 'checkin',
+        ttl: 3 * 3600,
+      },
+    ])
+    expect(plan(plainNews('checkin'), room({ envelope: null, people: [{ ...mia, paused: true }, leo], devices }), NOW)).toEqual([])
+    const german = plan(plainNews('checkin'), room({ envelope: null, people: [{ ...mia, lang: 'de' }, leo], devices }), NOW)
+    expect(german[0].message).toMatchObject({ title: 'Ein Moment für dich', body: 'Wie geht es dir gerade?' })
   })
 })

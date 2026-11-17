@@ -26,6 +26,10 @@ const TEASER = 'about last Saturday'
 const SEALED_BOX = 'c2VhbGVkLWluc2lkZS1vZi10aGUtZW52ZWxvcGU='
 const KEY = 'a2V5LWtleS1rZXkta2V5LWtleS1rZXkta2V5LWtleS1rZXkta2V5LWs='
 
+const WISH = '7c9e6679-7425-40de-944b-e07fc1f90ae7'
+const WISH_WORDS = 'a whole evening that is only ours'
+const WISH_NOTE = 'because of that night in the rain'
+
 type Row = Record<string, unknown>
 const utf8 = (text: string) => new TextEncoder().encode(text)
 
@@ -65,7 +69,13 @@ function query(table: string, params: URLSearchParams): Row[] {
     else if (filter === 'is.null') rows = rows.filter((row) => row[column] == null)
     else throw new Error(`the stand-in database does not know the filter ${filter}`)
   }
-  return rows
+  // "answered_at:answer->>at": one value out of a JSON column, under a name of its own.
+  const lifted = (params.get('select') ?? '').split(',').flatMap((column) => {
+    const match = /^(\w+):(\w+)->>(\w+)$/.exec(column)
+    return match ? [{ as: match[1], from: match[2], key: match[3] }] : []
+  })
+  if (lifted.length === 0) return rows
+  return rows.map((row) => ({ ...row, ...Object.fromEntries(lifted.map(({ as, from, key }) => [as, (row[from] as Row | null)?.[key] ?? null])) }))
 }
 
 const world = (async (input: string | URL | Request, init: RequestInit = {}) => {
@@ -144,6 +154,8 @@ beforeEach(async () => {
       { id: ENVELOPE, household_id: H, author_id: MIA, open_mode: 'hand', opens_at: null, created_at: at(-30), deleted_at: null, seen: {}, reply: null, teaser: TEASER, layers: { words: { iv: 'aXY=', box: SEALED_BOX } } },
     ],
     keys: [],
+    // Mia said a wish ten seconds ago. Leo has not answered it.
+    wishes: [{ id: WISH, household_id: H, author_id: MIA, text: WISH_WORDS, item: 'pace.unhurried', mode: 'do', want: 5, why: { chips: ['wish.long'], own: ['only with you'], note: WISH_NOTE }, answer: null, created_at: at(-10), deleted_at: null }],
     push_subscriptions: [subscription(leoPhone, LEO), subscription(leoTablet, LEO), subscription(miaPhone, MIA)],
   }
 })
@@ -552,6 +564,77 @@ describe('the other two', () => {
     pushes = []
     expect(await (await call(eventBody({ type: 'answered', actor_id: MIA }))).json()).toMatchObject({ sent: 0 })
     expect(pushes).toEqual([])
+  })
+})
+
+describe('wishes, the list and the reminder', () => {
+  const wish = () => tables.wishes[0]
+  const news = (type: string, actor = MIA, more: Row = {}) => ({ type, household_id: H, actor_id: actor, ...more })
+
+  it('a wish reaches the other one, in their language, and says who and nothing of what', async () => {
+    const answer = await call(news('wished', MIA, { wish_id: WISH }))
+    expect(await answer.json()).toEqual({ type: 'wished', sent: 2, gone: 0, failed: 0 })
+    expect(await onLeoPhone()).toEqual({ type: 'wished', title: 'Ein Wunsch für dich', body: 'Mia hat einen Wunsch für dich.', tag: `wish-${WISH}`, url: `/wishes/${WISH}` })
+    expect(pushes.find((p) => p.endpoint === leoPhone.endpoint)!.headers).toMatchObject({ TTL: String(48 * 3600), Urgency: 'normal', Topic: WISH.replaceAll('-', '') })
+  })
+
+  it('his answer goes back to her and does not say what he decided', async () => {
+    expect(await (await call(news('decided', LEO, { wish_id: WISH }))).json()).toMatchObject({ sent: 0 })
+    wish().answer = { decision: 'no', taps: ['glad'], heat: 1, why: { chips: ['decision.not-me'], own: [], note: 'not my thing, and I am glad you asked' }, at: at(-1) }
+    expect(await (await call(news('decided', LEO, { wish_id: WISH }))).json()).toEqual({ type: 'decided', sent: 1, gone: 0, failed: 0 })
+    const said = await open(pushes[0].body, miaPhone)
+    expect(pushes.map((p) => p.endpoint)).toEqual([miaPhone.endpoint])
+    expect(said).toEqual({ type: 'decided', title: 'An answer to your wish', body: 'Leo answered your wish.', tag: `wish-${WISH}`, url: `/wishes/${WISH}` })
+    // A wish that was answered is no longer "a wish for you".
+    pushes = []
+    expect(await (await call(news('wished', MIA, { wish_id: WISH }))).json()).toMatchObject({ sent: 0 })
+  })
+
+  it('asks the database for who and when of a wish, never for its words, its why or the decision', async () => {
+    wish().answer = { decision: 'yes', taps: [], heat: 5, why: { chips: [], own: [], note: 'yes, please' }, at: at(-1) }
+    await call(news('wished', MIA, { wish_id: WISH }))
+    await call(news('decided', LEO, { wish_id: WISH }))
+    const asked = dbCalls.filter((c) => c.url.startsWith('/rest/v1/wishes'))
+    expect(asked.length).toBe(2)
+    for (const { url } of asked) {
+      const columns = (new URL(url, SUPABASE).searchParams.get('select') ?? '*').split(',')
+      expect(columns.sort()).toEqual(['answered_at:answer->>at', 'author_id', 'created_at', 'deleted_at'])
+      expect(url).toContain(H)
+    }
+    // And nothing of it travels: what went to the push service is sealed, and what was sealed says who.
+    const all = JSON.stringify(await Promise.all(pushes.map((p) => open(p.body, p.endpoint === miaPhone.endpoint ? miaPhone : p.endpoint === leoPhone.endpoint ? leoPhone : leoTablet))))
+    for (const secret of [WISH_WORDS, WISH_NOTE, 'only with you', 'unhurried', 'yes, please', '"yes"']) expect(all).not.toContain(secret)
+  })
+
+  it('says nothing about a wish that was taken back, or one of another room', async () => {
+    wish().deleted_at = at(-1)
+    expect(await (await call(news('wished', MIA, { wish_id: WISH }))).json()).toMatchObject({ sent: 0 })
+    wish().deleted_at = null
+    wish().household_id = '99999999-9999-4999-8999-999999999999'
+    expect(await (await call(news('wished', MIA, { wish_id: WISH }))).json()).toMatchObject({ sent: 0 })
+    expect(pushes).toEqual([])
+  })
+
+  it('something in common is told to the other one, and the function looks at no answer on the list to say so', async () => {
+    expect(await (await call(news('matched', LEO))).json()).toEqual({ type: 'matched', sent: 1, gone: 0, failed: 0 })
+    expect(await open(pushes[0].body, miaPhone)).toEqual({ type: 'matched', title: 'Something in common', body: 'You and Leo have something new in common.', tag: 'list', url: '/list' })
+    const reads = dbCalls.filter((c) => !c.url.startsWith('/rest/v1/rpc/')).map((c) => c.url.split('?')[0])
+    expect(reads.sort()).toEqual(['/rest/v1/members', '/rest/v1/push_subscriptions'])
+  })
+
+  it('the reminder goes to the one who asked for it and to nobody else', async () => {
+    expect(await (await call(news('checkin', LEO))).json()).toEqual({ type: 'checkin', sent: 2, gone: 0, failed: 0 })
+    expect(pushes.map((p) => p.endpoint).sort()).toEqual([leoPhone.endpoint, leoTablet.endpoint].sort())
+    expect(await onLeoPhone()).toEqual({ type: 'checkin', title: 'Ein Moment für dich', body: 'Wie geht es dir gerade?', tag: 'checkin', url: '/checkin' })
+    expect(pushes[0].headers).toMatchObject({ TTL: String(3 * 3600), Topic: 'checkin' })
+    // A device that muted it stays quiet; a paused seat hears nothing.
+    pushes = []
+    tables.push_subscriptions = [subscription(leoPhone, LEO, ['checkin']), subscription(leoTablet, LEO)]
+    await call(news('checkin', LEO))
+    expect(pushes.map((p) => p.endpoint)).toEqual([leoTablet.endpoint])
+    pushes = []
+    tables.members[1].disabled_at = at(-60)
+    expect(await (await call(news('checkin', LEO))).json()).toMatchObject({ sent: 0 })
   })
 })
 

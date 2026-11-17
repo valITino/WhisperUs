@@ -87,10 +87,13 @@ export interface InvitePeek {
  * The cloud's side of the list is in supabase/functions/push/logic.ts; a unit test keeps
  * the two the same.
  */
-export const PUSH_TYPES = ['sealed', 'opened', 'answered'] as const
+export const PUSH_TYPES = ['sealed', 'opened', 'answered', 'wished', 'decided', 'matched', 'checkin'] as const
 /**
  * sealed: something was sealed for you and waits.   opened: something opened for you.
  * answered: the other one answered what you opened for them.
+ * wished: the other one has a wish for you.   decided: the other one answered your wish.
+ * matched: something new on the list that both answered openly.
+ * checkin: my own reminder to note how I am.
  */
 export type PushType = (typeof PUSH_TYPES)[number]
 

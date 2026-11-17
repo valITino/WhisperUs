@@ -42,20 +42,20 @@ export const TEASER_MAX = 120
 export const WORDS_MAX = 6000
 
 export class ActionError extends Error {
-  /** nothing_inside, nothing_opens, time_past, not_yours, not_here, not_open */
+  /** nothing_inside, nothing_opens, time_past, not_yours, not_here, not_open, nothing_noted, no_words, no_decision, answered */
   constructor(readonly code: string) {
     super(code)
     this.name = 'ActionError'
   }
 }
 
-async function who(kit: Kit): Promise<{ householdId: ID; memberId: ID }> {
+export async function who(kit: Kit): Promise<{ householdId: ID; memberId: ID }> {
   const [householdId, memberId] = await Promise.all([kit.store.householdId(), kit.store.memberId()])
   if (!householdId || !memberId) throw new ActionError('not_here')
   return { householdId, memberId }
 }
 
-const stamp = (householdId: ID, at: ISO) => ({ householdId, createdAt: at, updatedAt: at, deletedAt: null })
+export const stamp = (householdId: ID, at: ISO) => ({ householdId, createdAt: at, updatedAt: at, deletedAt: null })
 
 /**
  * Seal an envelope. Every layer is encrypted here, on this phone, with a key of its own.

@@ -80,17 +80,7 @@ export const reasonById = (id: string): Reason | undefined => BY_ID.get(id)
 /** A reason in words. An id the app no longer knows (an old one) is shown as it was saved. */
 export const reasonWords = (id: string, lang: Lang): string => BY_ID.get(id)?.[lang] ?? id
 
-export const OWN_MAX = 60
-export const OWN_LIMIT = 6
-export const NOTE_MAX = 600
-
-export const isEmptyWhy = (why: Why): boolean => why.chips.length === 0 && why.own.length === 0 && !why.note?.trim()
-
-/** Tidy a why before it is saved: no blanks, no doubles, nothing over length. */
-export function cleanWhy(why: Why): Why {
-  const own = [...new Set(why.own.map((word) => word.trim().slice(0, OWN_MAX)).filter(Boolean))].slice(0, OWN_LIMIT)
-  return { chips: [...new Set(why.chips)], own, note: why.note?.trim().slice(0, NOTE_MAX) || null }
-}
+export { cleanWhy, isEmptyWhy, NOTE_MAX, OWN_LIMIT, OWN_MAX } from '../../data/why'
 
 /** Which tones a why touches: the first thing the Cockpit will want to know about it. */
 export function tonesOf(why: Why): { warm: number; tender: number } {

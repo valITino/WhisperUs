@@ -2,7 +2,7 @@
 // Screens read from here, so they open instantly and work offline.
 
 import Dexie, { type Table } from 'dexie'
-import type { Envelope, Household, ID, ISO, Layer, LayerKey, Media, Member, Sealed, SyncTable } from './types'
+import type { DiaryKind, Envelope, Household, ID, Idea, ISO, Layer, LayerKey, Leaning, Media, Member, Note, Sealed, SyncTable, Wish } from './types'
 
 /** A change waiting to reach the cloud. Sent strictly in seq order. */
 export interface OutboxOp {
@@ -45,6 +45,24 @@ export interface VaultEntry {
   held: boolean
 }
 
+/**
+ * What a person noted about themselves, whole: a check-in, an answer to a question
+ * about themselves, what they said to an item of the list. Never synced. The parts
+ * named in `shared` are also in a row of `notes` or `leanings`, with the same id.
+ */
+export interface DiaryEntry {
+  id: ID
+  kind: DiaryKind
+  /** checkin: "2026-11-17.am". about: the question's id. leaning: the item's id. */
+  ref: string
+  /** When it was noted. */
+  at: ISO
+  body: Record<string, unknown>
+  /** The parts of the body the other one may see. */
+  shared: string[]
+  updatedAt: ISO
+}
+
 export interface MetaEntry {
   key: string
   value: unknown
@@ -58,8 +76,13 @@ export class AppDB extends Dexie {
   envelopes!: Table<Envelope, ID>
   keys!: Table<LayerKey, ID>
   media!: Table<Media, ID>
+  notes!: Table<Note, ID>
+  leanings!: Table<Leaning, ID>
+  ideas!: Table<Idea, ID>
+  wishes!: Table<Wish, ID>
   blobs!: Table<BlobEntry, ID>
   vault!: Table<VaultEntry, string>
+  diary!: Table<DiaryEntry, ID>
   outbox!: Table<OutboxOp, number>
   deadLetters!: Table<DeadLetter, number>
   meta!: Table<MetaEntry, string>
@@ -77,6 +100,14 @@ export class AppDB extends Dexie {
       outbox: '++seq, [table+rowId]',
       deadLetters: '++seq',
       meta: 'key',
+    })
+    // What a person notes about themselves, wishes and the list.
+    this.version(2).stores({
+      notes: 'id, householdId, memberId',
+      leanings: 'id, householdId, memberId, item',
+      ideas: 'id, householdId',
+      wishes: 'id, householdId, authorId',
+      diary: 'id, kind, [kind+ref]',
     })
   }
 
@@ -101,4 +132,12 @@ export const META = {
   memberId: 'me.memberId',
   lastSyncAt: 'sync.lastSyncAt',
   lastError: 'sync.lastError',
+  /** Wish answers I have looked at: { wishId: answeredAt }. About this screen, not about the two of us. */
+  answersSeen: 'wishes.answersSeen',
+  /** Wishes for me that I have opened: { wishId: true }. */
+  wishesSeen: 'wishes.seen',
+  /** Items of the list I have seen as "in common". */
+  matchesSeen: 'list.matchesSeen',
+  /** The last time the first look at myself was finished or put off. */
+  helloDone: 'hello.done',
 } as const

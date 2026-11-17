@@ -1,9 +1,9 @@
 // The push function without its Deno wrapper (index.ts), so the whole of it can run in
 // the unit tests against a stand-in database and a stand-in push service.
 //
-// It receives one event from the database (0003_push.sql), looks up who should hear about
-// it, sends each of their devices one notification, and forgets devices the push service
-// reports as gone.
+// It receives one event from the database (0003_push.sql, 0004_closer.sql), looks up who
+// should hear about it, sends each of their devices one notification, and forgets devices
+// the push service reports as gone.
 //
 // It is given no secrets of its own. The shared secret, the subject and the VAPID keys
 // live in the database (private.push_config); it fetches them with the service role key
@@ -94,14 +94,18 @@ export function pushHandler(config: PushConfig, tools: Tools = { fetch, now: () 
 
   async function lookUp(event: PushEvent): Promise<Room> {
     const room = `household_id=eq.${event.householdId}`
-    const [members, envelopes, keys, devices] = await Promise.all([
+    const nothing = Promise.resolve([] as Row[])
+    const [members, devices, envelopes, keys, wishes] = await Promise.all([
       rows(`members?${room}&deleted_at=is.null&select=id,name,prefs,disabled_at`),
-      rows(`envelopes?id=eq.${event.envelopeId}&${room}&select=author_id,open_mode,opens_at,created_at,deleted_at,seen,reply`),
-      // (A burnt key is marked deleted. The key itself is never asked for: the function has no use for it.)
-      rows(`keys?envelope_id=eq.${event.envelopeId}&${room}&deleted_at=is.null&select=layer,opens_at`),
       rows(`push_subscriptions?${room}&select=id,member_id,endpoint,p256dh,auth,muted_types`),
+      event.envelopeId ? rows(`envelopes?id=eq.${event.envelopeId}&${room}&select=author_id,open_mode,opens_at,created_at,deleted_at,seen,reply`) : nothing,
+      // (A burnt key is marked deleted. The key itself is never asked for: the function has no use for it.)
+      event.envelopeId ? rows(`keys?envelope_id=eq.${event.envelopeId}&${room}&deleted_at=is.null&select=layer,opens_at`) : nothing,
+      // Of a wish only who and when: not its words, not its why, not what was decided.
+      event.wishId ? rows(`wishes?id=eq.${event.wishId}&${room}&select=author_id,created_at,deleted_at,answered_at:answer->>at`) : nothing,
     ])
     const envelope = envelopes[0]
+    const wish = wishes[0]
     const now = tools.now().getTime()
     const seen = (envelope?.seen ?? {}) as Row
     // What the reader can open right now and has not opened yet. Only counted, never read.
@@ -129,6 +133,7 @@ export function pushHandler(config: PushConfig, tools: Tools = { fetch, now: () 
             repliedAt: reply ? str(reply.at) || str(envelope.created_at) : null,
           }
         : null,
+      wish: wish ? { deleted: wish.deleted_at != null, authorId: str(wish.author_id), createdAt: str(wish.created_at) || null, answeredAt: str(wish.answered_at) || null } : null,
     }
   }
 

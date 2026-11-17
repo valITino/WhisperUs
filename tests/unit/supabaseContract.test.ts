@@ -350,7 +350,9 @@ describe('the push function and the database agree', () => {
       const reply = (body: unknown) => new Response(JSON.stringify(body), { status: 200 })
       if (table === 'rpc/push_settings') return reply({ secret, subject: 'https://room.example.org/', vapid_public: 'B'.repeat(87), vapid_private: 'd'.repeat(43) })
       if (init.method === 'DELETE') return new Response(null, { status: 204 })
-      asked.push({ table, names: [...at.searchParams.keys()].filter((key) => key !== 'select').concat((at.searchParams.get('select') ?? '').split(',')) })
+      // ("answered_at:answer->>at" asks for one value out of the column "answer".)
+      const selected = (at.searchParams.get('select') ?? '').split(',').map((name) => /^\w+:(\w+)->>\w+$/.exec(name)?.[1] ?? name)
+      asked.push({ table, names: [...at.searchParams.keys()].filter((key) => key !== 'select').concat(selected) })
       if (table === 'members') return reply([{ id: ids.mia, name: 'Mia', prefs: {}, disabled_at: null }])
       if (table === 'envelopes') return reply([{ author_id: ids.mia, open_mode: 'hand', opens_at: null, created_at: new Date().toISOString(), deleted_at: null, seen: {}, reply: null }])
       return reply([])
@@ -362,7 +364,14 @@ describe('the push function and the database agree', () => {
     expect((await handle(post({ ...event, type: 'opened', actor_id: ids.mia }))).status).toBe(200)
     expect((await handle(post({ ...event, type: 'answered', actor_id: ids.leo }))).status).toBe(200)
 
-    expect([...new Set(asked.map((a) => a.table))].sort()).toEqual(['envelopes', 'keys', 'members', 'push_subscriptions'])
+    // The later kinds: about a wish, about the list, and the reminder.
+    const wish = '44444444-4444-4444-8444-444444444444'
+    expect((await handle(post({ household_id: ids.h, wish_id: wish, type: 'wished', actor_id: ids.mia }))).status).toBe(200)
+    expect((await handle(post({ household_id: ids.h, wish_id: wish, type: 'decided', actor_id: ids.leo }))).status).toBe(200)
+    expect((await handle(post({ household_id: ids.h, type: 'matched', actor_id: ids.leo }))).status).toBe(200)
+    expect((await handle(post({ household_id: ids.h, type: 'checkin', actor_id: ids.mia }))).status).toBe(200)
+
+    expect([...new Set(asked.map((a) => a.table))].sort()).toEqual(['envelopes', 'keys', 'members', 'push_subscriptions', 'wishes'])
     for (const { table, names } of asked) {
       const known = columns.get(table)
       expect(known, `the table ${table} is not defined in supabase/migrations`).toBeDefined()
@@ -371,7 +380,12 @@ describe('the push function and the database agree', () => {
     // It never asks for what is inside an envelope, nor for what is written on it.
     const envelopeColumns = asked.filter((a) => a.table === 'envelopes').flatMap((a) => a.names)
     expect(envelopeColumns.filter((name) => ['layers', 'teaser', 'heat_outside'].includes(name))).toEqual([])
+    // Nor for the words of a wish, its why, or anything from the list.
+    const wishColumns = asked.filter((a) => a.table === 'wishes').flatMap((a) => a.names)
+    expect(wishColumns.filter((name) => ['text', 'why', 'item', 'want', 'mode'].includes(name))).toEqual([])
+    expect(asked.some((a) => ['leanings', 'notes', 'ideas'].includes(a.table))).toBe(false)
     // The parser really sees the columns.
+    expect(columns.get('wishes')!.has('answer')).toBe(true)
     expect(columns.get('members')!.has('prefs')).toBe(true)
     expect(columns.get('members')!.has('disabled_at')).toBe(true)
     expect(columns.get('keys')!.has('announced_at')).toBe(true)
@@ -417,12 +431,63 @@ describe('what the app sends and what the tables take', () => {
     }
   })
 
-  it('pulls every table the app syncs, under the name the app expects', () => {
-    const sql = readFileSync(join(__dirname, '../../supabase/migrations/0002_envelopes.sql'), 'utf8')
-    const pull = sql.slice(sql.indexOf('create or replace function public.sync_pull'))
-    for (const table of ['households', 'members', 'envelopes', 'keys', 'media']) expect(pull).toContain(`'${table}', (select`)
+  it('has a column for every field of a note, an answer on the list, an idea and a wish', async () => {
+    const { FakeCloud } = await import('../../src/data/fake/cloudCore')
+    const { saveAbout, saveCheckin, saveLeaning } = await import('../../src/data/journal')
+    const { addIdea, answerWish, makeWish, removeIdea, takeBackWish } = await import('../../src/data/wishes')
+    const { snakeKeys } = await import('../../src/data/case')
+    const { makeCouple, settle } = await import('./helpers')
+    const { her, him } = await makeCouple(new FakeCloud())
+    const reason = { chips: ['wish.long'], own: ['ours'], note: 'Because.' }
+    await saveCheckin(her.kit, { body: { mood: 3, why: reason }, share: ['mood', 'why'] })
+    await saveAbout(her.kit, 'say', { value: 2 }, ['value'])
+    await saveLeaning(her.kit, 'soft.massage', { lean: 'yes', pull: 4, why: reason }, { showWhy: true })
+    await addIdea(her.kit, 'Something of our own', 'own')
+    const wish = await makeWish(her.kit, { text: 'A wish', item: 'soft.massage', mode: 'do', want: 4, why: reason })
+    const sent = await her.db.outbox.toArray()
+    await settle(her, him)
+    // His side of a wish: the answer. And every way of taking something back.
+    await answerWish(him.kit, wish, { decision: 'yes', taps: ['glad'], heat: 3, why: reason })
+    sent.push(...(await him.db.outbox.toArray()))
+    await takeBackWish(her.kit, wish)
+    await removeIdea(her.kit, (await her.db.ideas.toArray())[0].id)
+    await saveLeaning(her.kit, 'soft.massage', null)
+    sent.push(...(await her.db.outbox.toArray()))
+
+    const columns = columnsInMigrations()
+    const tables = ['ideas', 'leanings', 'notes', 'wishes']
+    expect([...new Set(sent.map((op) => op.table))].sort()).toEqual(tables)
+    for (const op of sent) {
+      const names = Object.keys(snakeKeys(op.data)).filter((name) => name !== 'updated_at')
+      const known = columns.get(op.table)!
+      expect(names.filter((name) => !known.has(name)), `${op.table} is sent fields it has no column for`).toEqual([])
+    }
+    for (const table of tables) {
+      const appFields = new Set(sent.filter((op) => op.table === table).flatMap((op) => Object.keys(snakeKeys(op.data))))
+      expect([...columns.get(table)!].filter((column) => !appFields.has(column)), `${table} has columns the app never fills`).toEqual([])
+    }
+  })
+
+  it('pulls every table the app syncs, under the name the app expects', async () => {
+    const { SYNC_TABLES, LATER_TABLES } = await import('../../src/data/types')
+    const files = readdirSync(join(__dirname, '../../supabase/migrations')).sort().map((file) => readFileSync(join(__dirname, '../../supabase/migrations', file), 'utf8'))
+    // The newest definition of sync_pull is the one that counts.
+    const newest = files.filter((sql) => sql.includes('function public.sync_pull')).at(-1) as string
+    const pull = newest.slice(newest.indexOf('function public.sync_pull'))
+    for (const table of SYNC_TABLES) expect(pull, `sync_pull does not hand out ${table}`).toContain(`'${table}', (select`)
     // Realtime tells phones about every one of them.
-    const all = readdirSync(join(__dirname, '../../supabase/migrations')).map((file) => readFileSync(join(__dirname, '../../supabase/migrations', file), 'utf8')).join('\n')
-    for (const table of ['households', 'members', 'envelopes', 'keys', 'media']) expect(all).toContain(`alter publication supabase_realtime add table public.${table};`)
+    const all = files.join('\n')
+    for (const table of SYNC_TABLES) expect(all).toContain(`alter publication supabase_realtime add table public.${table};`)
+    // What came later is what the first definitions did not know: an older cloud leaves exactly these out.
+    const before = files.filter((sql) => sql.includes('function public.sync_pull')).at(-2) as string
+    const older = before.slice(before.indexOf('function public.sync_pull'))
+    expect(SYNC_TABLES.filter((table) => !older.includes(`'${table}', (select`))).toEqual([...LATER_TABLES])
+  })
+
+  it('understands a cloud that has no such table yet, and a second answer to one item', async () => {
+    patchAnswer = { status: 404, body: { code: 'PGRST205', message: "Could not find the table 'public.wishes' in the schema cache", details: null, hint: null } }
+    await expect(backend().push({ table: 'wishes', kind: 'put', id: 'w1', data: { id: 'w1', text: 'A wish' } })).rejects.toMatchObject({ kind: 'setup', code: 'table_missing' })
+    patchAnswer = { status: 409, body: { code: '23505', message: 'duplicate key value violates unique constraint "leanings_member_item_key"', details: null, hint: null } }
+    await expect(backend().push({ table: 'leanings', kind: 'put', id: 'l1', data: { id: 'l1', item: 'soft.massage', lean: 'yes' } })).rejects.toMatchObject({ kind: 'rejected', code: 'leaning_exists' })
   })
 })

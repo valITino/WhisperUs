@@ -445,7 +445,7 @@ match rule is the one of Spicer and similar apps.
   iPhone would need its own look at recording formats and at notifications.
 - **Voice notes travel whole.** A five-minute note is a few megabytes and needs a
   connection that holds for the upload. It is queued and retried.
-- **The first load is one piece of JavaScript** (about 290 kB compressed). After the first
+- **The first load is one piece of JavaScript** (about 325 kB compressed). After the first
   visit the app starts from the phone.
 - **A paused or logged-out author** cannot release held layers. Nothing is lost while the
   phone keeps its data.

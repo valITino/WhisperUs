@@ -7,6 +7,7 @@ import type { Member, Wish } from '../../data/types'
 import { useCopy } from '../../i18n'
 import { Button, Card, cx, Loader, Screen, Tag } from '../../ui/components'
 import { Icon } from '../../ui/deco/Icon'
+import { LaterNote } from '../share/LaterNote'
 import { wishesCopy } from './copy'
 
 function WishRow({ wish, mine, partner, fresh }: { wish: Wish; mine: boolean; partner: Member; fresh: boolean }) {
@@ -56,6 +57,7 @@ export function WishesScreen() {
         <p className="mt-2 text-sm text-ink-soft">{c.lead}</p>
       </header>
       <main className="app-column flex flex-col gap-7 px-4 pt-5" data-testid="wishes">
+        <LaterNote />
         {partner ? (
           <Button size="lg" block icon={<Icon name="wish" size={20} />} onClick={() => navigate('/wishes/new')}>
             {c.make}

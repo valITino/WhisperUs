@@ -19,6 +19,7 @@ import { QUESTIONS } from '../about/library'
 import { happenedWords, oftenWords, SCALES } from '../checkin/library'
 import { stepWords } from '../checkin/words'
 import { itemWords } from '../list/library'
+import { LaterNote } from '../share/LaterNote'
 import { stepBetween } from '../share/steps'
 import { reasonWords } from '../why'
 import { cockpitCopy, type CockpitCopy } from './copy'
@@ -339,6 +340,7 @@ function Ours({ c, lang, frame, me, partner, mine, theirs, list, about, wishes }
   return (
     <>
       <p className="px-1 text-sm text-ink-soft">{c.oursLead(partner.name)}</p>
+      <LaterNote />
 
       {nothing && <EmptyState lit={false} title={c.emptyOurs.title} body={c.emptyOurs.body} />}
 

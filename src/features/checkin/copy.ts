@@ -48,8 +48,6 @@ export const checkinCopy = {
       done: (time: string) => `Checked in at ${time}`,
       change: 'Change',
       theirs: (name: string) => `${name} today`,
-      morning: 'this morning',
-      evening: 'this evening',
     },
     times: {
       title: 'Check-in',
@@ -115,8 +113,6 @@ export const checkinCopy = {
       done: (time: string) => `Eingecheckt um ${time}`,
       change: 'Ändern',
       theirs: (name: string) => `${name} heute`,
-      morning: 'heute Morgen',
-      evening: 'heute Abend',
     },
     times: {
       title: 'Check-in',

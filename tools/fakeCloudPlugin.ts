@@ -73,6 +73,13 @@ export function fakeCloud(): Plugin {
         return json(res, 200, { result: null })
       }
 
+      // The owner's side of the database: "value=0" plays a cloud from before migration
+      // 0004 (it knows neither wishes nor the list nor notes), anything else the cloud after it.
+      if (url.pathname === '/closer' && req.method === 'POST') {
+        cloud.closer = url.searchParams.get('value') !== '0'
+        return json(res, 200, { result: null })
+      }
+
       // The minute job of the real cloud: announce envelopes whose time has come.
       if (url.pathname === '/tick' && req.method === 'POST') {
         cloud.tick()

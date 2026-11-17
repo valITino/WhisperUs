@@ -7,9 +7,9 @@ import type { EnvelopeView } from '../../data/envelopes'
 import { parseSlot, slotRef } from '../../data/journal'
 import { useCheckins, useEnvelopes, useNewAnswers, useRoom, useSlot } from '../../data/queries'
 import { CHECKIN_SCALES, nowIso, type Member } from '../../data/types'
-import { useCopy, useLang } from '../../i18n'
+import { useCopy, useLang, useT } from '../../i18n'
 import { formatTime, zurichHour } from '../../lib/dates'
-import { inWords } from '../../lib/when'
+import { dayAndTime, inWords } from '../../lib/when'
 import { Avatar, Button, Card, cx, EmptyState, Loader, Screen, SyncPill, Tag, toast } from '../../ui/components'
 import { Candle, Envelope } from '../../ui/deco/Deco'
 import { Icon } from '../../ui/deco/Icon'
@@ -71,6 +71,7 @@ export function HomeScreen() {
   const cc = useCopy(checkinCopy).home
   const hc = useCopy(helloCopy).card
   const lang = useLang()
+  const t = useT()
   const room = useRoom()
   const envelopes = useEnvelopes()
   const newAnswers = useNewAnswers()
@@ -135,7 +136,7 @@ export function HomeScreen() {
         {partner && theirs && theirScales.length > 0 && (
           <Card tone="note" pad={false} className="p-5" data-testid="their-day">
             <h2 className="text-lg">{cc.theirs(partner.name)}</h2>
-            <p className="mt-0.5 text-xs font-semibold text-ink-soft">{theirs.ref.endsWith('.pm') ? cc.evening : cc.morning}</p>
+            <p className="mt-0.5 text-xs font-semibold text-ink-soft">{dayAndTime(theirs.at, lang, t.common)}</p>
             <dl className="mt-3 flex flex-col gap-1.5">
               {theirScales.map((scale) => (
                 <div key={scale} className="flex flex-wrap items-baseline justify-between gap-x-4">

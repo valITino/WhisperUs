@@ -462,3 +462,36 @@ test('the two moments of the day are mine to choose, and so is the reminder', as
   const members = JSON.parse(await (await request.get(`/__cloud/peek?table=members&id=${await k.evaluate((app: Kit) => app.store.memberId())}`)).text())
   expect(members.result.prefs.checkin).toEqual({ remind: true, times: ['07:15', '22:05'] })
 })
+
+test('a room whose cloud has not been updated yet keeps what would travel, says so, and sends it once it can', async ({ browser, request }) => {
+  const { mia, leo } = await makeCouple(browser, contexts)
+  // The app is newer than the cloud: the migration for wishes, the list and notes is not applied.
+  await request.post('/__cloud/closer?value=0')
+
+  await go(mia, '/wishes/new')
+  await mia.getByLabel('What do you wish for?').fill('A wish that has to wait a little.')
+  await mia.getByRole('button', { name: 'Send the wish' }).click()
+  await expect(mia.getByTestId('wish-mine')).toBeVisible()
+  await syncNow(mia)
+
+  // Nothing is refused and nothing is lost. Where he would be expected to see it, the app says why he does not yet.
+  await expect(mia.getByTestId('later-note')).toContainText("1 thing is saved on this phone and cannot reach your partner yet")
+  await mia.getByTestId('later-note').getByRole('button', { name: 'What is waiting' }).click()
+  await expect(mia.getByTestId('sync-later')).toContainText('1')
+  await expect(mia.getByTestId('sync-later-hint')).toContainText('Nothing is lost')
+  await expect(mia.getByTestId('sync-stuck')).toContainText('0')
+  // What does not need the update goes on as before.
+  await expect(mia.getByTestId('sync-pending')).toContainText('0')
+  await syncNow(leo)
+  await go(leo, '/wishes')
+  await expect(leo.getByTestId('wishes')).toContainText('No wish from Mia yet')
+  await expect(leo.getByTestId('later-note')).toHaveCount(0)
+
+  // The owner applies the migration. The phones notice by themselves.
+  await request.post('/__cloud/closer?value=1')
+  await settle(mia)
+  await go(mia, '/wishes')
+  await expect(mia.getByTestId('later-note')).toHaveCount(0)
+  await syncNow(leo)
+  await expect(leo.getByTestId('wishes-for-me').getByTestId('wish-row')).toContainText('A wish that has to wait a little.')
+})

@@ -6,6 +6,7 @@ import { markMatchesSeen, useList, usePartner } from '../../data/queries'
 import { useCopy, useLang } from '../../i18n'
 import { Card, HeatMeter, Loader, Tag } from '../../ui/components'
 import { StepPage } from '../onboarding/parts'
+import { LaterNote } from '../share/LaterNote'
 import { listCopy } from './copy'
 import { itemWords, SECTIONS } from './library'
 import { ListPicker } from './ListPicker'
@@ -37,6 +38,7 @@ export function ListScreen() {
   return (
     <StepPage title={c.title} backTo="/wishes">
       <div className="flex flex-col gap-7 px-4" data-testid="list">
+        <LaterNote />
         <Card tone="haze" pad={false} className="p-4">
           <h2 className="text-base">{c.rule.title}</h2>
           <p className="mt-1.5 text-sm leading-snug">{partner ? c.rule.body(partner.name) : c.rule.alone}</p>

@@ -11,6 +11,7 @@ import { Button, buzz, Card, cx, EmptyState, HeatMeter, Loader, Options, Tag, to
 import { itemWords } from '../list/library'
 import { ConfirmSheet, ErrorNote, StepPage } from '../onboarding/parts'
 import { WhyPicker, WhyView } from '../why'
+import { LaterNote } from '../share/LaterNote'
 import { wishesCopy } from './copy'
 import { WISH_TAPS, wishTapById } from './library'
 
@@ -203,6 +204,7 @@ export function WishScreen({ id }: { id: ID }) {
   return (
     <StepPage title={mine ? c.page.mine : c.page.theirs(partner.name)} backTo="/wishes">
       <div className="flex flex-col gap-6 px-4" data-testid={mine ? 'wish-mine' : 'wish-theirs'}>
+        <LaterNote />
         <WishCard wish={wish} itemLabel={itemLabel} />
 
         {mine && (

@@ -42,6 +42,8 @@ export interface MemberPrefs {
   heatMax?: Heat
   /** When this person wants to be asked how they are. Off until they switch it on. */
   checkin?: CheckinTimes
+  /** When they finished the first look at themselves after signing up, or put it off. */
+  firstLook?: ISO
 }
 
 /** Two moments a day, on the room's clock (Europe/Zurich), as "08:30". */

@@ -286,3 +286,14 @@ export async function renameRoom(kit: Kit, name: string): Promise<void> {
   const { householdId } = await who(kit)
   await kit.store.patch('households', householdId, { name: name.trim().slice(0, 80) })
 }
+
+/**
+ * Change some of my settings that live on the profile, leaving the others as they are
+ * right now (language and light are written by settingsSync, the rest from here).
+ */
+export async function updateMyPrefs(kit: Kit, changes: Partial<Member['prefs']>): Promise<void> {
+  const { memberId } = await who(kit)
+  const me = await kit.db.members.get(memberId)
+  if (!me) throw new ActionError('not_here')
+  await kit.store.patch('members', memberId, { prefs: { ...me.prefs, ...changes } })
+}

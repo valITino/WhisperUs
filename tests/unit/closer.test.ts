@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { ActionError } from '../../src/data/actions'
 import { BackendError } from '../../src/data/backend'
 import { FakeCloud } from '../../src/data/fake/cloudCore'
-import { cleanCheckin, cleanLeaning, matchesOf, mine, myLeanings, parseSlot, removeCheckin, saveAbout, saveCheckin, saveLeaning, slotOf, slotRef, theirs } from '../../src/data/journal'
+import { cleanCheckin, cleanLeaning, keptHere, matchesOf, mine, myLeanings, parseSlot, removeCheckin, saveAbout, saveCheckin, saveLeaning, slotOf, slotRef, theirs } from '../../src/data/journal'
 import { LATER_TABLES, NO_WHY, stableId, type AboutBody, type CheckinBody, type ID, type Leaning, type Note, type Wish } from '../../src/data/types'
 import { addIdea, answerWish, changeWish, makeWish, removeIdea, takeBackWish, type WishDraft } from '../../src/data/wishes'
 import { anotherDevice, HER_PIN, makeCouple, settle, type Phone } from './helpers'
@@ -163,6 +163,34 @@ describe('a check-in', () => {
     expect(theirs('checkin', await him.db.notes.toArray(), hisId)).toEqual([])
     expect((await him.db.notes.get(id))?.body).toEqual({})
     expect(await cloudText(him)).not.toContain('Slept badly')
+  })
+
+  it('once nothing is shown, the cloud hears nothing more: not that she checked in again, nor when', async () => {
+    const id = await saveCheckin(her.kit, { body: full, share: ['mood'], at: MORNING })
+    await settle(her, him)
+    await removeCheckin(her.kit, id)
+    await settle(her, him)
+    const before = JSON.stringify(inCloud('notes', id))
+
+    // The same morning, noted again and kept to herself; then changed, still to herself.
+    await saveCheckin(her.kit, { body: { mood: 1, desire: 5 }, share: [], at: MORNING })
+    await saveCheckin(her.kit, { body: { mood: 2 }, share: [], at: new Date(MORNING.getTime() + 600_000) })
+    expect(await outbox(her, 'notes')).toEqual([])
+    await settle(her, him)
+    expect(JSON.stringify(inCloud('notes', id))).toBe(before)
+    expect((await her.db.diary.get(id))?.body).toEqual({ mood: 2 })
+  })
+
+  it('knows what exists on this phone only: a part that is not shown, a no, a quiet yes, a why that did not travel', async () => {
+    await saveCheckin(her.kit, { body: { mood: 2, desire: 5 }, share: ['mood', 'desire'], at: MORNING })
+    await saveCheckin(her.kit, { body: { mood: 2, desire: 5 }, share: ['mood'], at: EVENING })
+    await saveLeaning(her.kit, 'soft.massage', { lean: 'yes', pull: 3 })
+    await saveLeaning(her.kit, 'words.whisper', { lean: 'yes', why: why('Mine.') })
+    await saveLeaning(her.kit, 'pace.unhurried', { lean: 'yes', why: why('Yours too.') }, { showWhy: true })
+    await saveLeaning(her.kit, 'looks.mirrors', { lean: 'no' })
+    await saveLeaning(her.kit, 'play.roles', { lean: 'maybe', quiet: true })
+    const kept = (await her.db.diary.toArray()).filter(keptHere).map((entry) => entry.ref).sort()
+    expect(kept).toEqual(['2026-11-17.pm', 'looks.mirrors', 'play.roles', 'words.whisper'])
   })
 
   it('he cannot write, change or remove what she showed', async () => {

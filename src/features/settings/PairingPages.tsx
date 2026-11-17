@@ -17,11 +17,12 @@ export function FirstSteps() {
   const p = useCopy(pairingCopy)
   const c = useCopy(settingsCopy)
   const partner = usePartner()
+  const me = useMe()
 
   return (
     <StepPage
       footer={
-        <Button variant={partner ? 'primary' : 'secondary'} size={partner ? 'lg' : 'md'} block onClick={() => navigate('/', { replace: true })}>
+        <Button variant={partner ? 'primary' : 'secondary'} size={partner ? 'lg' : 'md'} block onClick={() => navigate(me?.member?.prefs.firstLook ? '/' : '/hello', { replace: true })}>
           {c.first.done}
         </Button>
       }

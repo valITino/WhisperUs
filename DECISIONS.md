@@ -21,7 +21,9 @@ So the app takes those three apart.
 
 Everything else follows from that. The app is a place to practise being heard, not a game
 with points. There are no streaks, no reminders to "seal something today", no counters
-that could turn telling into a duty.
+that could turn telling into a duty. (The one reminder the app knows is the check-in's,
+and it is the person's own alarm: off until they switch it on, at the minutes they pick,
+for themselves alone. Section 12.)
 
 ## 1. The seal
 
@@ -117,9 +119,11 @@ opposites. A unit test guards the wording: no reason calls a feeling bad, wrong 
 
 **Never required.** A why can always be left empty. Asking is an offer.
 
-Today the why appears twice: on what was said (`said`), and on the answer (`received`).
-The match list, the cards and the afterglow will reuse the same picker with their own
-libraries.
+The why appears in seven places, each with a library of its own: on what was said
+(`said`) and on the answer to it (`received`), on an answer about oneself (`about`), on a
+check-in (`checkin`: what helped, what got in the way), on an answer on the list
+(`leaning`), on a wish (`wish`) and on the answer to a wish (`decision`). The cards and
+the afterglow will reuse the same picker.
 
 ## 3. What the other one is asked for, and what is never shown
 
@@ -148,10 +152,17 @@ envelope, a word from inside, the heat, or a hint at the subject. The push funct
 not even ask the database for those columns, and never for a key
 (`tests/unit/push.handler.test.ts` checks the queries).
 
-Three kinds: **sealed** (something waits for you), **opened** (it is open for you now),
-**answered** (your envelope was answered). Several layers opening together are one
-"opened". A minute job in the database (`private.announce_due`) announces timed envelopes
-when their time has come, although nobody touches a phone at that moment.
+Seven kinds. About envelopes: **sealed** (something waits for you), **opened** (it is open
+for you now), **answered** (your envelope was answered). Several layers opening together
+are one "opened". A minute job in the database (`private.announce_due`) announces timed
+envelopes when their time has come, although nobody touches a phone at that moment.
+Since `0004_closer.sql`: **wished** ("Mia has a wish for you."), **decided** ("Leo answered
+your wish.", never what he decided: a no is not for a lock screen), **matched** ("You and
+Leo have something new in common.", never what, and not again within ten minutes: an
+evening with the list must not make the other phone buzz twenty times), and **checkin**
+("How are you right now?"), which goes to the one who asked for it and to nobody else.
+The function asks the database only for who and when of a wish, never for its words, its
+why or the decision, and for nothing at all from the list.
 
 The same sentence for "when" is used in the notification and on the page
 (`whenWords` in `supabase/functions/push/logic.ts`, read by `src/lib/when.ts`).
@@ -297,7 +308,11 @@ dashboard.
   for everything to read and tap, La Belle Aurore for handwriting, used only on envelopes
   and in the words somebody wrote.
 - **The bar** is the back of an envelope: the flap's point in the middle, and where a
-  letter's seal would be sits the one thing the app is for.
+  letter's seal would be sits the one thing the app is for. Two places on each side of
+  it: the room and wishes, the cockpit and "Us".
+- **The cockpit is a notebook.** Thin ink columns on a hairline, one colour, a few
+  sentences. No tiles, no gauges, no totals to reach. Every column can be read out in
+  words (a tap, or the arrow keys), and a screen reader gets the list.
 - **Motion answers actions.** The seal breaks when it is tapped. Nothing moves to greet
   you.
 - **Words.** Sentence case, plain verbs, both languages, Swiss spelling in German. A
@@ -313,6 +328,116 @@ React, Dexie, supabase-js, Motion, date-fns, a QR generator, three fonts. Encryp
 the browser's own Web Crypto. Recording is the browser's MediaRecorder. No UI kit, no
 state library, no crypto library. Fewer things that can change under a private app that
 should still open in five years.
+
+## 12. Closer: what is noted, what is shown, what is counted
+
+The owner asked for five things with "ratings" on all of them: questions at sign-up, a
+cockpit for each and one for both, kinks to pick, a check-in twice a day, and wishes that
+the other one decides on. They are built (PLAN.md, M3). This section says how they were
+made to fit the one question every change is measured against: does it make telling
+easier and being heard safer?
+
+**A rating describes, it never grades.** Every scale in the app runs between two poles
+that are both all right: "Slow today, please" to "Come closer", "Once we are close" to
+"Out of nowhere", "A passing thought" to "I long for it". There is no good end and no
+bad end, no points, no result. Tapping the chosen step takes it away again: not answering
+is an answer. "Nothing rates a feeling" still holds; a person says where they stand.
+
+**The why is offered everywhere and required nowhere, also on a decision.** The request
+was "always with a reason". The picker is always there, one tap away, and it can always
+be left empty. A why somebody had to give is an excuse, and a no that has to be justified
+is harder to say kindly. The research agrees (below).
+
+**Two places, one rule.** What a person notes about themselves (a check-in, an answer
+about themselves, an answer on the list) is written whole to the `diary`, a table that
+never leaves the phone. Only the parts its author opens are written to a row that syncs
+(`notes`, `leanings`), under the same id. Nothing is ever shown on anybody's behalf, and
+"only me" is the answer that is already chosen.
+
+Why not simply keep everything in the cloud behind row-level security? For the same
+reason the seal exists: one of the two owns the project and can browse every table. A
+check-in that says how often she thought about sex today must not be one click away from
+him. So it is not there at all.
+
+**The list.** Each answers alone: "I would like that", "I am curious", "only in my head",
+"not for me", with how strong the pull is and why.
+- Something shows for both only where both answered openly (one of the first three).
+  The database enforces it: the other one's row can be read only while one has such a
+  row for the same item oneself (`private.i_lean`), and `sync_pull` hands it over at the
+  moment one's own answer arrives.
+- **A "not for me" never leaves the phone.** It has no row in the cloud, and the table
+  would not take one. So "he never sees a no" is true as written, also for whoever owns
+  the project.
+- "Only in my head" is its own answer because a fantasy somebody likes to imagine is not
+  a wish to do it, and saying which it is makes saying it easier.
+- An answer can be **kept to oneself**: it stays in the diary and meets nothing. This is
+  the per-item choice the match rule would otherwise take away.
+- The why of an answer travels only if its author says so, and is then read only where
+  the two meet.
+- **What ships with the app** are twelve groups of plainly named items, the kind of word
+  a mainstream platform shows as a tag. Nothing explicit, in keeping with section 6.
+  Whatever the two want beyond it they write onto the list themselves, and it behaves
+  like every other item.
+
+**Wishes are said, not sealed.** A wish is read as soon as it is sent, like an answer:
+it is addressed to the one person who could otherwise only read it in the dashboard, so
+sealing it would protect nothing. Its author writes the wish, the other one writes the
+answer and nothing else. What was answered stays as it was answered (a yes must not end
+up under other words); it can still be taken back, and the cloud then forgets its words,
+its why and the answer. A "not now" can become a "yes". A wish can also be "a fantasy
+that may stay one", which asks for no decision. Every answer can carry a warm line ("I
+like that you asked"), because a kind no does a couple no harm and a cold one does.
+
+**The check-in** asks about the day and the person, never about how an encounter went,
+and never right after one. One per half of a day (the day turns at four in the morning),
+so checking in again changes it instead of adding to a tally. What somebody shows of
+today stands on the other one's room: "Slow today, please" is the mood weather the plan
+had for later.
+
+**The reminder is one's own alarm.** Off until switched on, at two minutes the person
+picks, sent to their devices only, and it says "How are you right now?" and nothing else.
+The cloud cannot know whether they have checked in already (what they note is not
+there), so it reminds either way and never follows up.
+
+**The cockpit counts with care,** because counting can hurt what it counts.
+- A day without a check-in is simply not drawn. Nothing is ever "missed", and there are
+  no streaks.
+- No targets, no averages against anybody, nothing that reads as a score for a person.
+- Tendencies ("stronger later in the day", "what often goes with more desire") appear
+  only once there is enough to go on, and are worded as companions, not causes.
+- **Nobody's no is ever counted.** The page for two counts wishes said and yeses.
+- The page for two is drawn only from what each chose to show, in the same order on both
+  phones, so both see the same page. Where both showed desire, the two rows stand under
+  the sentence "Two rhythms, and neither is the right one".
+
+**Where this comes from.** The questions and the check-in's "what helped, what got in the
+way" follow the dual control model (Bancroft and Janssen; Nagoski's worksheets) and
+Basson's desire that follows closeness instead of preceding it. That telling likes and
+dislikes raises satisfaction through feeling understood: MacNeil and Byers. That a
+reassuring no does no harm and a reluctant yes does: studies on turning a partner down
+kindly (read here in summaries, not in full). The cautions
+are from Etkin (measuring an enjoyable thing lowers the joy in it, unless it is framed as
+learning), Loewenstein (couples told to raise their frequency were less happy), Lupton
+and the criticism of apps that keep a report card of sex, and from studies of mood
+trackers (logging feels like a burden when nothing helps to read the data). Answer
+options are close to the yes / maybe / fantasy / no of the Scarleteen inventory, and the
+match rule is the one of Spicer and similar apps.
+
+### What closer is not
+
+- **The diary exists once.** It is on the phone it was noted on. Logging that phone out,
+  or losing it, loses it; logging out counts the entries and asks first. Another device
+  of the same person has only what they showed.
+- **Shown is plain.** A shown part of a check-in, an open answer on the list, something
+  written onto the list, a wish and its answer are ordinary rows. Row-level security
+  keeps them inside the room and keeps an unmet answer off the other phone. Whoever owns
+  the project could read them in the dashboard, deliberately. What must not be readable
+  by anybody is never sent.
+- **Saying yes to everything shows the other one's open answers.** That is in the nature
+  of such a list. It never shows a "not for me" or anything kept quiet, and it cannot
+  tell either of them from silence.
+- **The reminder needs notifications** to be on for the device, and the migration and
+  the function to be deployed (PLAN.md, "Open right now").
 
 ## Limits to know
 

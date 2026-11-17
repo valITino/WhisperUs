@@ -8,14 +8,32 @@ test.afterEach(async () => {
   for (const context of contexts.splice(0)) await context.close()
 })
 
-test('the bar: two places and, between them, the seal that leads into the booth', async ({ browser, request }) => {
+test('the bar: four places and, between them, the seal that leads into the booth', async ({ browser, request }) => {
   await resetCloud(request)
   const { mia } = await makeCouple(browser, contexts)
   await mia.goto('/#/')
   const bar = tabs(mia)
-  await expect(bar.getByRole('button')).toHaveCount(3)
-  for (const name of ['Room', 'Us', 'Step into the booth']) await expect(bar.getByRole('button', { name, exact: true })).toBeVisible()
+  await expect(bar.getByRole('button')).toHaveCount(5)
+  for (const name of ['Room', 'Wishes', 'Cockpit', 'Us', 'Step into the booth']) await expect(bar.getByRole('button', { name, exact: true })).toBeVisible()
   await expect(bar.getByRole('button', { name: 'Room', exact: true })).toHaveAttribute('aria-current', 'page')
+  // Every one of them is big enough for a thumb, also at the narrowest phone we design for.
+  await mia.setViewportSize({ width: 360, height: 740 })
+  for (const control of await bar.getByRole('button').all()) {
+    const box = await control.boundingBox()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44)
+  }
+
+  await bar.getByRole('button', { name: 'Wishes', exact: true }).click()
+  await expect(mia).toHaveURL(/#\/wishes$/)
+  await expect(mia.getByRole('heading', { level: 1, name: 'Wishes' })).toBeVisible()
+  await bar.getByRole('button', { name: 'Cockpit', exact: true }).click()
+  await expect(mia).toHaveURL(/#\/cockpit$/)
+  await expect(bar.getByRole('button', { name: 'Cockpit', exact: true })).toHaveAttribute('aria-current', 'page')
+  // The cockpit's second page is still the cockpit.
+  await mia.getByRole('radio', { name: 'Ours', exact: true }).click()
+  await expect(mia).toHaveURL(/#\/cockpit\/us$/)
+  await expect(bar.getByRole('button', { name: 'Cockpit', exact: true })).toHaveAttribute('aria-current', 'page')
 
   await bar.getByRole('button', { name: 'Us', exact: true }).click()
   await expect(mia).toHaveURL(/#\/settings$/)

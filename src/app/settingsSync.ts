@@ -43,6 +43,8 @@ export function startSettingsSync(): () => void {
    * Undefined until the profile has loaded, null when it has never saved settings.
    */
   let lastSeen: MemberPrefs | null | undefined
+  /** Everything the profile carries right now, the settings this file does not look at included. */
+  let latest: MemberPrefs = {}
   /** Our own changes still on their way to the profile. */
   let writing = 0
   let applying = false
@@ -51,8 +53,9 @@ export function startSettingsSync(): () => void {
     if (applying || lastSeen === undefined) return
     const mine = here()
     if (lastSeen && sameSettings(mine, lastSeen)) return
-    // Whatever else the profile carries travels along untouched.
-    const next = { ...(lastSeen ?? {}), ...mine }
+    // Whatever else the profile carries (check-in times, the first look) travels along
+    // untouched, as it is on the profile right now.
+    const next = { ...(lastSeen ?? {}), ...latest, ...mine }
     lastSeen = next
     writing += 1
     void updateMyProfile({ prefs: next })
@@ -69,6 +72,7 @@ export function startSettingsSync(): () => void {
     return id ? db.members.get(id) : undefined
   }).subscribe((me) => {
     if (!me) return
+    latest = me.prefs ?? {}
     const saved = savedSettings(me.prefs)
     if (!saved) {
       // A brand-new profile: remember the choices made on this device.

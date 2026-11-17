@@ -2,7 +2,7 @@
 
 export const en = {
   brand: { name: 'WhisperUs', slogan: 'U tell. I listen.' },
-  tabs: { home: 'Room', us: 'Us', seal: 'Step into the booth', nav: 'Main', withNews: (tab: string, count: number) => `${tab}, ${count} new` },
+  tabs: { home: 'Room', wishes: 'Wishes', cockpit: 'Cockpit', us: 'Us', seal: 'Step into the booth', nav: 'Main', withNews: (tab: string, count: number) => `${tab}, ${count} new` },
   actions: { save: 'Save', cancel: 'Cancel', done: 'Done' },
   /** What the five flames mean. */
   heat: ['A warm glow', 'Tingling', 'Hot', 'Very hot', 'On fire'],

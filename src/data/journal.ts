@@ -123,14 +123,17 @@ async function writeNote(kit: Kit, householdId: ID, memberId: ID, input: NoteInp
   const now = nowIso()
   const entry: DiaryEntry = { id: input.id, kind: input.kind, ref: input.ref, at: input.at, body: input.body, shared: input.shared, updatedAt: now }
   await kit.db.diary.put(entry)
-  const shown = shownParts(input.body, input.shared)
   const row = await kit.db.notes.get(input.id)
-  if (row) {
-    // Showing less, or nothing any more, empties the row instead of removing it: it may be shown again.
-    await kit.store.patch('notes', input.id, { at: input.at, body: shown, deletedAt: null })
-  } else if (input.shared.length > 0) {
-    await kit.store.put('notes', { id: input.id, ...stamp(householdId, now), memberId, kind: input.kind, ref: input.ref, at: input.at, body: shown })
+  if (input.shared.length === 0) {
+    // Nothing is shown. If something was, the row is emptied (not removed: it may be shown
+    // again). If nothing was, nothing is sent at all: the cloud does not even learn that
+    // something was noted, or when.
+    if (row && !row.deletedAt && Object.keys(row.body).length > 0) await kit.store.patch('notes', input.id, { body: {} })
+    return
   }
+  const shown = shownParts(input.body, input.shared)
+  if (row) await kit.store.patch('notes', input.id, { at: input.at, body: shown, deletedAt: null })
+  else await kit.store.put('notes', { id: input.id, ...stamp(householdId, now), memberId, kind: input.kind, ref: input.ref, at: input.at, body: shown })
 }
 
 async function dropNote(kit: Kit, id: ID): Promise<void> {
@@ -214,6 +217,16 @@ export async function saveLeaning(kit: Kit, item: string, answer: LeaningBody | 
   const shown: Pick<Leaning, 'lean' | 'pull' | 'why'> = { lean: body.lean as Leaning['lean'], pull: body.pull ?? null, why: options.showWhy && body.why ? body.why : null }
   if (row) await kit.store.patch('leanings', id, { ...shown, deletedAt: null })
   else await kit.store.put('leanings', { id, ...stamp(householdId, now), memberId, item, ...shown })
+}
+
+/**
+ * Whether a diary entry holds something that exists on this phone only: a part that is
+ * not shown, a "not for me", an answer kept quiet, a why that did not travel.
+ */
+export function keptHere(entry: DiaryEntry): boolean {
+  if (entry.kind !== 'leaning') return Object.keys(entry.body).some((part) => !entry.shared.includes(part))
+  const body = entry.body as unknown as LeaningBody
+  return body.lean === 'no' || body.quiet === true || (body.why !== undefined && !entry.shared.includes('why'))
 }
 
 // ------------------------------------------------------------------ reading --

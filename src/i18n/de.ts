@@ -4,7 +4,7 @@ import type { Messages } from './en'
 
 export const de: Messages = {
   brand: { name: 'WhisperUs', slogan: 'U tell. I listen.' },
-  tabs: { home: 'Zimmer', us: 'Wir', seal: 'In die Kabine treten', nav: 'Hauptnavigation', withNews: (tab: string, count: number) => `${tab}, ${count} neu` },
+  tabs: { home: 'Zimmer', wishes: 'Wünsche', cockpit: 'Cockpit', us: 'Wir', seal: 'In die Kabine treten', nav: 'Hauptnavigation', withNews: (tab: string, count: number) => `${tab}, ${count} neu` },
   actions: { save: 'Speichern', cancel: 'Abbrechen', done: 'Fertig' },
   heat: ['Ein warmes Glimmen', 'Es kribbelt', 'Heiss', 'Sehr heiss', 'In Flammen'],
   sync: {

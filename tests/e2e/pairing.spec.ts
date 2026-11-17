@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
+import { skipFirstLook } from './ship.helpers'
 
 // The start, logging in and the admin's controls, played by several devices against the
 // pretend cloud. Here he opens the room (so he is its admin) and she joins by link: the
@@ -106,7 +107,7 @@ async function joinByLink(page: Page, link: string, who = MIA): Promise<void> {
   await next(page)
   await choosePin(page, who.pin)
   await page.getByRole('button', { name: 'Join the room' }).click()
-  await expect(tabs(page)).toBeVisible()
+  await skipFirstLook(page)
 }
 
 /** Leo opens the room on one device, Mia joins on another. */
@@ -116,7 +117,7 @@ async function makeCouple(browser: Browser): Promise<{ leo: Page; mia: Page }> {
   await joinByLink(mia, await openRoom(leo))
   await expect(leo.getByTestId('partner-joined')).toContainText('Mia is in')
   await leo.getByRole('button', { name: 'Done' }).click()
-  await expect(tabs(leo)).toBeVisible()
+  await skipFirstLook(leo)
   return { leo, mia }
 }
 
@@ -289,14 +290,15 @@ test('the start: open a room step by step, be its admin, invite by link', async 
     await choosePin(mia, MIA.pin)
     await mia.getByRole('button', { name: 'Join the room' }).click()
     await expect(toast(mia, 'Welcome to the room')).toBeVisible()
-    await expect(tabs(mia)).toBeVisible()
+    // Somebody new is asked a few things about themselves first. It can wait (closer.spec.ts goes through it).
+    await skipFirstLook(mia)
   })
 
-  await test.step('his invite screen notices her, and "Done" lands in the app', async () => {
+  await test.step('his invite screen notices her, and "Done" leads on: a first look at himself, then the app', async () => {
     await expect(leo.getByTestId('partner-joined')).toContainText('Mia is in')
     await expect(leo.getByRole('heading', { name: 'A room for two' })).toBeVisible()
     await leo.getByRole('button', { name: 'Done' }).click()
-    await expect(tabs(leo)).toBeVisible()
+    await skipFirstLook(leo)
   })
 
   await test.step('the whole profile arrived in one go: name, avatar, accessory and status on both sides', async () => {

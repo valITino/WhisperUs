@@ -4,7 +4,7 @@ import { WaxSeal } from '../deco/Deco'
 import { Icon, type IconName } from '../deco/Icon'
 import { buzz, cx } from './cx'
 
-export type TabId = 'home' | 'us'
+export type TabId = 'home' | 'wishes' | 'cockpit' | 'us'
 
 interface Props {
   active: TabId
@@ -17,8 +17,11 @@ interface Props {
   inline?: boolean
 }
 
+/** Two on each side of the seal. */
 const tabs: { id: TabId; icon: IconName }[] = [
   { id: 'home', icon: 'home' },
+  { id: 'wishes', icon: 'wish' },
+  { id: 'cockpit', icon: 'cockpit' },
   { id: 'us', icon: 'us' },
 ]
 
@@ -39,7 +42,7 @@ export function TabBar({ active, onSelect, onSeal, badges = {}, inline = false }
         aria-current={on ? 'page' : undefined}
         aria-label={count > 0 ? t.tabs.withNews(t.tabs[id], count) : undefined}
         onClick={() => onSelect(id)}
-        className={cx('relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl', on ? 'text-accent' : 'text-ink-soft')}
+        className={cx('relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl', on ? 'text-accent' : 'text-ink-soft')}
       >
         <span className="relative">
           <Icon name={icon} size={24} />
@@ -61,9 +64,11 @@ export function TabBar({ active, onSelect, onSeal, badges = {}, inline = false }
         <div className="flap-top bg-haze px-1 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
           <div className="flex items-stretch">
             {tab(tabs[0])}
-            {/* Room for the seal. */}
-            <span aria-hidden className="w-24 shrink-0" />
             {tab(tabs[1])}
+            {/* Room for the seal. */}
+            <span aria-hidden className="w-[5.25rem] shrink-0" />
+            {tab(tabs[2])}
+            {tab(tabs[3])}
           </div>
         </div>
         <motion.button

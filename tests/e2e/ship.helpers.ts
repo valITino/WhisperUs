@@ -68,8 +68,18 @@ export async function openRoom(page: Page, who = MIA): Promise<string> {
   return (await page.getByTestId('qr').getAttribute('data-qr-value')) ?? ''
 }
 
-/** He joins through her invite link. Ends inside the app. */
-export async function joinByLink(page: Page, link: string, who = LEO): Promise<void> {
+/**
+ * Somebody new is asked a few things about themselves first. Put that off ("Later"),
+ * which is what the specs about everything else want. Ends in the room.
+ */
+export async function skipFirstLook(page: Page): Promise<void> {
+  await expect(page.getByTestId('hello')).toBeVisible()
+  await page.getByRole('button', { name: 'Later', exact: true }).click()
+  await expect(tabs(page)).toBeVisible()
+}
+
+/** He joins through her invite link. Ends inside the app, or on the first look when asked to stay there. */
+export async function joinByLink(page: Page, link: string, who = LEO, options: { firstLook?: boolean } = {}): Promise<void> {
   await page.goto(link)
   await expect(page.getByTestId('invitation')).toBeVisible()
   await page.getByLabel('Your name').fill(who.name)
@@ -77,7 +87,8 @@ export async function joinByLink(page: Page, link: string, who = LEO): Promise<v
   await next(page)
   await pin(page, who.pin)
   await page.getByRole('button', { name: 'Join the room' }).click()
-  await expect(tabs(page)).toBeVisible()
+  if (options.firstLook) await expect(page.getByTestId('hello')).toBeVisible()
+  else await skipFirstLook(page)
 }
 
 /**
@@ -90,7 +101,7 @@ export async function makeCouple(browser: Browser, contexts: BrowserContext[], o
   await joinByLink(leo, await openRoom(mia))
   await expect(mia.getByTestId('partner-joined')).toContainText('Leo is in')
   await mia.getByRole('button', { name: 'Done' }).click()
-  await expect(tabs(mia)).toBeVisible()
+  await skipFirstLook(mia)
   return { mia, leo }
 }
 

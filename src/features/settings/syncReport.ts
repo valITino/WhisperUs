@@ -57,6 +57,7 @@ export function syncReport(input: SyncReportInput): string {
     `Changes waiting: ${status.pending}`,
     `Voice notes waiting: ${status.uploads}${input.stuckFiles ? ` (${input.stuckFiles} gave up)` : ''}`,
     `Refused changes: ${status.stuck}`,
+    `Waiting for a cloud update: ${status.later}`,
     `Last error: ${status.lastError ? scrub(status.lastError) : 'none'}`,
   ]
   if (input.lastErrorOnRecord) lines.push(`Last error on record: ${scrub(input.lastErrorOnRecord.message)}, ${input.lastErrorOnRecord.at}`)

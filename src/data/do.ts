@@ -21,6 +21,7 @@ export const markSeen = (envelopeId: ID, layers: readonly Layer[]) => actions.ma
 export const answer = (envelopeId: ID, reply: Omit<Reply, 'at'>) => actions.answer(kit, envelopeId, reply)
 export const updateMyProfile = (changes: actions.ProfileChanges) => actions.updateMyProfile(kit, changes)
 export const renameRoom = (name: string) => actions.renameRoom(kit, name)
+export const updateMyPrefs = (changes: Parameters<typeof actions.updateMyPrefs>[1]) => actions.updateMyPrefs(kit, changes)
 
 // What I note about myself (journal.ts), wishes and the list (wishes.ts).
 export type { CheckinInput } from './journal'

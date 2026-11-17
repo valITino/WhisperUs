@@ -252,9 +252,10 @@ search engines to stay away.
 
 ### Connecting the cloud (once)
 
-This room's cloud is connected: the project is called `whisperus` and lives in Zurich
-(set up on 13 November 2026, steps 1, 2, 4, 6 and 7). **Two switches are yours to flip,
-steps 3 and 5.** The whole list stays here for whoever sets up a room of their own.
+This room's cloud is connected and the room is open: the project is called `whisperus`
+and lives in Zurich (set up on 13 November 2026, brought up to date on 17 November 2026,
+see "Updating the cloud"). The whole list stays here for whoever sets up a room of their
+own.
 
 1. **Supabase:** create a new project (the free plan is enough) in a region near you.
 2. **Database:** apply the files in `supabase/migrations`, in order (`0001_room.sql`,
@@ -284,24 +285,26 @@ Then open the room. Whoever opens it is its admin.
 
 ### Updating the cloud (wishes, the list, the check-in)
 
-This room's cloud was set up with the first three migrations. The fourth,
-`supabase/migrations/0004_closer.sql`, is **not applied yet**. Until it is, everything
-from before works, the new things work on each phone, and what would travel between
-your phones waits (the Sync page shows "Waiting for an update of the cloud").
+This room's cloud is up to date: `supabase/migrations/0004_closer.sql` was applied on
+17 November 2026 and the notification function was deployed again the same day. The
+steps stay here for whoever runs a room of their own on an older database. Until they
+are done, everything from before works, the new things work on each phone, and what
+would travel between the phones waits (the Sync page shows "Waiting for an update of
+the cloud").
 
-1. **Apply** `supabase/migrations/0004_closer.sql` as it is, in the SQL editor. It adds
-   four tables and their rules, four kinds of notification and the minute job for the
-   check-in reminder. It changes nothing about envelopes.
-2. **Check the rules:** paste `supabase/tests/closer_test.sql`. It prints
-   `CLOSER REPORT (rolled back)` and 39 lines that should all start with `ok`. It builds
-   its own throwaway room, sends nothing and rolls everything back.
-3. **Check that the database is what the files say:** run
+1. **Apply** `supabase/migrations/0004_closer.sql` as it is, in one piece, in the SQL
+   editor. It adds four tables and their rules, four kinds of notification and the minute
+   job for the check-in reminder. It changes nothing about envelopes.
+2. **Check that the database is what the files say:** run
    `supabase/tests/local/digest.sql` there and compare with
    `bash supabase/tests/local/run.sh digest`: the ten lines must be the same.
-4. **Deploy the notification function again** (`npm run build:push`, then as in
-   `supabase/functions/push/README.md`, step 2), so that it knows the four new kinds.
-   Until then the old one keeps announcing envelopes and answers "not an event" to the
-   rest.
+3. **Check the rules:** paste `supabase/tests/closer_test.sql`. It prints
+   `CLOSER REPORT (rolled back)` and 39 lines that should all start with `ok`. It builds
+   its own throwaway room, sends nothing and rolls everything back.
+4. **Deploy the notification function again** (as in
+   `supabase/functions/push/README.md`, "What is deployed right now"), so that it knows
+   the four new kinds. Until then the old one keeps announcing envelopes and answers
+   "not an event" to the rest.
 
 The phones notice by themselves: the next time the app is opened, what waited goes out.
 

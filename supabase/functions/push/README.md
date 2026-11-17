@@ -196,27 +196,30 @@ five minutes.
 
 Switched on for the live project (`whisperus`, Zurich) on 13 November 2026:
 
-- The three migrations are applied. They went in through a connector in thirteen parts
+- The first three migrations are applied. They went in through a connector in thirteen parts
   (the migration history in the dashboard lists them as `room_01_…` to `push_03_…`); the
   schema fingerprint (`supabase/tests/local/digest.sql`) is the same on the live project
   and on a database built from the files, and `seal_test.sql` passed there with 29 of 29.
 - The function `push` is deployed with JWT verification off, as a one-line loader that
   imports this folder's `index.ts` from GitHub at one fixed commit, so that what runs is
-  exactly what was tested and nothing was copied by hand:
+  exactly what was tested and nothing was copied by hand. Since 17 November 2026
+  (version 2) that is the commit which knows all seven kinds:
 
   ```ts
-  import 'https://raw.githubusercontent.com/valITino/WhisperUs/6ff70f22006622cd55514fd9846a724d80f43970/supabase/functions/push/index.ts'
+  import 'https://raw.githubusercontent.com/valITino/WhisperUs/e55c209ed486e67934cb30c46a5e46d89af7cd9c/supabase/functions/push/index.ts'
   ```
+
+  (Version 1, from 13 November, named `6ff70f22006622cd55514fd9846a724d80f43970`.)
 
 - `private.push_setup` was run and the keys were made. The function answered `200` to
   `init`, and `401 wrong_secret` to a call without the secret and to one with a wrong one.
 - A real notification on a real phone is still to be seen.
-- **Not deployed yet (17 November 2026):** `0004_closer.sql` and the function's four new
-  kinds (a wish, its answer, something in common on the list, the check-in reminder).
-  The loader above still names the commit from before them, and that version answers
-  `400 not_an_event` to the new kinds, which harms nothing. Once the migration is applied
-  (README.md, "Updating the cloud"), deploy the loader again with the commit that holds
-  them, as described below.
+- `0004_closer.sql` is applied (17 November 2026, as `closer_01_notes_list_wishes`, in one
+  piece); the fingerprint is again the same on the live project and on a database built
+  from the files. After the new version went out, the function answered `401 wrong_secret`
+  to a call without the secret and `405` to a GET. The four new kinds have not been seen
+  on a phone yet, and `closer_test.sql` has not been run on the live project yet (PLAN.md,
+  "Open right now").
 
 To ship a change to the function: commit and push it, then deploy the loader again with the
 new commit in the address. Pasting the single file from `npm run build:push` works too.

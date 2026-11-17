@@ -138,16 +138,20 @@ configs read the same variable). After changing `src/data/fake/cloudCore.ts` or
 - The real backend is Supabase (`supabaseBackend.ts`). **Never run tests or experiments
   against a real project**, and never point this app at another project's data.
   `.env.production` names this room's own project or nothing at all.
-- The first three migrations are applied to the live project (13 November 2026) and are
-  history: never edit them. A change to the database is a new migration, applied to the
-  live project only with the owner's go, and checked afterwards by comparing
+- All four migrations are applied to the live project (the first three on 13 November
+  2026, `0004_closer.sql` on 17 November 2026) and are history: never edit them. A change
+  to the database is a new migration, applied to the live project only with the owner's
+  go, in one piece (a migration that stops halfway would leave new tables without their
+  rules), and checked before and afterwards by comparing
   `bash supabase/tests/local/run.sh digest` with `supabase/tests/local/digest.sql` run on
-  the live project (the ten lines must be the same).
-- `0004_closer.sql` is written, tested locally and **not applied** (17 November 2026):
-  PLAN.md, "Open right now". Once it is applied it is history like the others. Until
-  then the tables it brings are `LATER_TABLES` in `types.ts`: a cloud that does not know
-  them answers "table_missing", and changes to them wait on the phone instead of being
-  refused (`sync.ts`, `status.later`). The pretend cloud plays such a cloud with
+  the live project (the ten lines must be the same). Function bodies are compared byte
+  for byte, so the SQL goes in exactly as the file has it.
+- The owner's account holds other projects too. Every call names this room's project by
+  its id, the one in `.env.production`, and no other.
+- The tables a later migration brings are `LATER_TABLES` in `types.ts`: a cloud that does
+  not know them yet answers "table_missing", and changes to them wait on the phone
+  instead of being refused (`sync.ts`, `status.later`). That is how the app could ship
+  before its migration, and how it can again. The pretend cloud plays such a cloud with
   `cloud.closer = false`.
 - The only tests that may run on the live project are the repository's own SQL rule tests
   (`supabase/tests/*.sql`): they build throwaway rows and roll themselves back.

@@ -63,24 +63,26 @@ it together before the next one starts.
 
 ## Open right now
 
-- **The cloud does not know M3 yet.** `supabase/migrations/0004_closer.sql` is written and
-  tested on a local database (39 of 39), and it is **not applied** to the live project:
-  that needs the owner's go. Until then the app works as before, the new things work on
-  each phone, and what would travel (shown parts of a check-in, open answers on the list,
-  wishes) waits on the phone and goes out by itself once the migration is in. The Sync
-  page says so. README, "Updating the cloud", has the four steps.
-- **The notification function** has to be deployed again for the four new kinds (a wish,
-  its answer, something in common, the check-in reminder). The old one keeps working for
-  the three kinds it knows.
-- **Two switches before the first evening.** The cloud is connected (13 November 2026:
-  the project `whisperus` in Zurich, the first three migrations, notifications, the
-  keep-alive). Still to flip, by the owner: **Allow anonymous sign-ins** in Supabase, and
-  **GitHub Pages** with source "GitHub Actions" (README, "Connecting the cloud", steps 3
-  and 5).
+- **The cloud knows M3** (17 November 2026, with the owner's go). `0004_closer.sql` went
+  into the live project in one piece (migration `closer_01_notes_list_wishes`). The schema
+  fingerprint was the same on the live project and on a local database before it (the
+  first three migrations) and after it (all four): ten lines of ten. The room's own rows
+  are untouched, and the advisors report nothing of a new kind.
+- **The notification function** is deployed again (version 2), as the same one-line loader,
+  now pinned to the commit that knows the four new kinds. It starts and refuses a call
+  without the secret, as it should.
+- **Still to do on the live project:** run `supabase/tests/closer_test.sql` there once
+  (it builds a throwaway room and rolls itself back). The connector asks for a confirmation
+  because the test contains `delete` statements, and that question went unanswered. The
+  same 39 cases pass on a local database built from the same files.
+- **The room is open.** On 17 November 2026 the live project held one room with two people
+  and three devices, one of them signed up for notifications (counts only: nothing of the
+  room was read). So anonymous sign-ins are switched on and the app is reachable.
 - **He opens the room**, so he is its admin. That opens no envelope (DECISIONS.md,
   section 8).
-- **A real phone.** Recording, the lock when the app goes out of sight, and a real
-  notification on a real lock screen have been seen in tests, not yet on your phones.
+- **On real phones.** Recording, the lock when the app goes out of sight and a
+  notification on a real lock screen have been seen in tests. How they behave on your two
+  phones is for you to say; so are the four new kinds of notification.
 
 ## Backlog
 

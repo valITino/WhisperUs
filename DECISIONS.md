@@ -436,8 +436,9 @@ match rule is the one of Spicer and similar apps.
 - **Saying yes to everything shows the other one's open answers.** That is in the nature
   of such a list. It never shows a "not for me" or anything kept quiet, and it cannot
   tell either of them from silence.
-- **The reminder needs notifications** to be on for the device, and the migration and
-  the function to be deployed (PLAN.md, "Open right now").
+- **The reminder needs notifications** to be on for the device. It is sent by a job in
+  the database that looks once a minute, so it arrives within that minute, not on the
+  second, and a minute the job misses is a reminder that does not come.
 
 ## Limits to know
 

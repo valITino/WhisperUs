@@ -3,7 +3,8 @@
 // through the list, and the two moments of the day for the check-in.
 //
 // Nothing here is required. Every step can be passed, "Later" leaves at once, and all
-// of it can be found again: the questions under "About me", the list under "Wishes".
+// of it can be found again: the questions on the profile ("The questions about you"),
+// the list under "Wishes".
 // Like the start wizard it is one page in the browser's history: going back returns to
 // the step before.
 

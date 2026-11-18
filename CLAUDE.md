@@ -24,7 +24,8 @@ safer?
   is enough to go on, and never counts anybody's no (DECISIONS.md, section 12).
 - **The why is offered everywhere and required nowhere.** Wherever somebody chooses or
   rates, the same picker asks "and why?" (`src/features/why`). It can always be left empty.
-- **No read receipts**, in the app or in a notification.
+- **No read receipts**, in the app, in a notification or in the news: an answer is news,
+  reading is not.
 - **Discretion.** A notification, the lock screen, the Sync page, a report, a log line:
   none of them ever carries a line from an envelope, a reason, a heat, or a hint at the
   subject. When in doubt, say less.
@@ -107,6 +108,17 @@ configs read the same variable). After changing `src/data/fake/cloudCore.ts` or
   (the list with its sheets; `library.ts` has the groups and items), `wishes` (the tab,
   the form, one wish with its answer) and `cockpit` (mine at `/cockpit`, for two at
   `/cockpit/us`). Ids in the libraries are what gets saved: never change one.
+- **News:** `src/data/news.ts` is the one list of what is new (pure, and tested): the bell
+  on the room, the lines under it, the News page (`/news`, `src/features/news`) and the
+  numbers on the tabs all read it. A line names who and what kind of thing, never what
+  is in it. "New" lasts until the thing itself was looked at; the marks for that are in
+  the phone's `meta` and never leave it. A new kind of thing that can be new gets a kind
+  in `news.ts` and a line in the news copy, not a counter of its own.
+- **Profiles:** `/profile` (mine) and `/profile/partner` are one screen
+  (`src/features/profile/ProfileScreen.tsx`) drawn from `shownBy` in `src/data/profile.ts`,
+  which reads only the rows that travel, never the diary: my profile is exactly what the
+  other one sees of me. Whatever becomes showable belongs on it. Editing name, picture
+  and status stays at `/settings/profile`.
 - **Charts** are the two drawings in `src/ui/components/Chart.tsx` (`DayColumns`,
   `RankedBars`): one colour, thin marks, every value also in words. No other chart, no
   chart library.
@@ -128,7 +140,7 @@ configs read the same variable). After changing `src/data/fake/cloudCore.ts` or
   `matchPath('/envelope/:id', path)`. A page can hold the phone's back button
   (`setBlocker`); `navigate()` is never held.
 - `src/app/Shell.tsx` owns the lock, the start, the four tabs (room, wishes, cockpit,
-  us) and toasts. `src/App.tsx` shows the
+  us), their numbers (from the news) and toasts. `src/App.tsx` shows the
   "not connected yet" page when the build knows no cloud (`src/data/cloud.ts`).
 - **Refused changes** (`deadLetters`) leave the list only through `sync.retryRefused` and
   `sync.discardRefused`; `src/data/refused.ts` names them by kind, never by content.

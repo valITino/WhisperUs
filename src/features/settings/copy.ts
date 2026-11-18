@@ -8,9 +8,11 @@ export const settingsCopy = {
   en: {
     title: 'Us',
     profile: {
-      edit: 'Edit my profile',
-      title: 'My profile',
-      noStatus: 'No status line yet. Tap to write one.',
+      open: 'Your profile',
+      title: 'Edit profile',
+      noStatus: 'No status line yet',
+      youLabel: 'You',
+      openTheirs: (name: string) => `${name}'s profile`,
       save: 'Save profile',
     },
     room: {
@@ -24,7 +26,6 @@ export const settingsCopy = {
       aloneBody: 'Your partner is not here yet. A room like this needs two.',
       invite: 'Invite your partner',
       partnerLabel: 'Your partner',
-      partnerNoStatus: 'No status line yet',
       people: 'People',
       peopleHintAdmin: 'Invite, pause a seat or let your partner back in.',
       peopleHint: 'Who is in this room, and who is its admin.',
@@ -177,9 +178,11 @@ export const settingsCopy = {
   de: {
     title: 'Wir',
     profile: {
-      edit: 'Mein Profil bearbeiten',
-      title: 'Mein Profil',
-      noStatus: 'Noch keine Statuszeile. Tipp, um eine zu schreiben.',
+      open: 'Dein Profil',
+      title: 'Profil bearbeiten',
+      noStatus: 'Noch keine Statuszeile',
+      youLabel: 'Du',
+      openTheirs: (name: string) => `Profil von ${name}`,
       save: 'Profil speichern',
     },
     room: {
@@ -193,7 +196,6 @@ export const settingsCopy = {
       aloneBody: 'Dein Schatz ist noch nicht da. So ein Zimmer braucht zwei.',
       invite: 'Deinen Schatz einladen',
       partnerLabel: 'Dein Schatz',
-      partnerNoStatus: 'Noch keine Statuszeile',
       people: 'Leute',
       peopleHintAdmin: 'Einladen, einen Platz pausieren oder deinen Schatz wieder reinlassen.',
       peopleHint: 'Wer in diesem Zimmer ist, und wer sein Admin.',

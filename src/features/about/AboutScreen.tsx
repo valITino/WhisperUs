@@ -1,7 +1,8 @@
 // "About me": the questions I answered about myself, to change whenever I stand
-// somewhere else, and what the other one chose to show me of theirs.
+// somewhere else. What the other one showed of theirs is on their profile.
 
 import { useState } from 'react'
+import { navigate } from '../../app/router'
 import { saveAbout } from '../../data/do'
 import { useAbout, usePartner } from '../../data/queries'
 import { useCopy, useLang } from '../../i18n'
@@ -9,9 +10,8 @@ import { Button, Card, Loader, Sheet, Tag, toast } from '../../ui/components'
 import { Icon } from '../../ui/deco/Icon'
 import { ErrorNote, StepPage } from '../onboarding/parts'
 import { stepBetween } from '../share/steps'
-import { WhyView } from '../why'
 import { aboutCopy } from './copy'
-import { QUESTIONS, questionWords, type Question } from './library'
+import { QUESTIONS, type Question } from './library'
 import { draftOf, QuestionForm, toAnswer, type AnswerDraft } from './QuestionForm'
 
 export function AboutScreen() {
@@ -23,15 +23,14 @@ export function AboutScreen() {
 
   if (!about || partner === undefined) {
     return (
-      <StepPage title={c.title} backTo="/cockpit">
+      <StepPage title={c.title} backTo="/profile">
         <Loader />
       </StepPage>
     )
   }
-  const shown = [...about.theirs.values()]
 
   return (
-    <StepPage title={c.title} backTo="/cockpit">
+    <StepPage title={c.title} backTo="/profile">
       <div className="flex flex-col gap-6 px-4" data-testid="about">
         <p className="text-sm text-ink-soft">{c.lead}</p>
         <ul className="flex flex-col gap-2.5">
@@ -63,29 +62,16 @@ export function AboutScreen() {
         </ul>
 
         {partner && (
-          <section aria-labelledby="about-theirs">
-            <h2 id="about-theirs" className="mb-2.5 px-1 text-lg">
-              {c.theirs(partner.name)}
-            </h2>
-            {shown.length === 0 ? (
-              <p className="px-1 text-sm text-ink-soft">{c.theirsNone(partner.name)}</p>
-            ) : (
-              <ul className="flex flex-col gap-2.5" data-testid="about-theirs-list">
-                {shown.map((answer) => {
-                  const words = questionWords(answer.ref, lang)
-                  return (
-                    <li key={answer.id}>
-                      <Card tone="haze" pad={false} className="flex flex-col gap-2 p-4">
-                        <p className="text-sm font-bold leading-snug">{words.ask}</p>
-                        {answer.body.value && <p className="text-sm font-semibold text-accent">{stepBetween(words.low, words.high, answer.body.value, lang)}</p>}
-                        {answer.body.why && <WhyView why={answer.body.why} />}
-                      </Card>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </section>
+          // What the other one showed is on their profile, with everything else of theirs.
+          <Card pad={false} className="overflow-hidden">
+            <button type="button" data-testid="about-theirs" onClick={() => navigate('/profile/partner')} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left active:bg-haze/40">
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">{c.theirs(partner.name)}</span>
+                <span className="mt-0.5 block text-xs leading-snug text-ink-soft">{c.theirsHint(about.theirs.size)}</span>
+              </span>
+              <Icon name="next" size={20} className="shrink-0 text-ink-soft" />
+            </button>
+          </Card>
         )}
       </div>
 

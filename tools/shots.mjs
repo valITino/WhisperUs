@@ -18,7 +18,8 @@ mkdirSync(out, { recursive: true })
 // A pretend microphone that hums, and no question about using it: the booth records.
 const browser = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] })
 
-for (const theme of ['light', 'dark']) {
+// One theme only: SHOTS_THEME=light node tools/shots.mjs
+for (const theme of (process.env.SHOTS_THEME ?? 'light,dark').split(',')) {
   await fetch(`${BASE}/__cloud/reset`, { method: 'POST' })
   let n = 0
   const phone = async () => {
@@ -249,7 +250,7 @@ for (const theme of ['light', 'dark']) {
   await leo.getByTestId('home').waitFor()
   await settle(leo)
   await settle(mia)
-  for (const [page, path, mark, name] of [[mia, '/', 'their-day', 'room-with-his-day'], [mia, '/wishes', 'wishes', 'wishes'], [mia, '/list', 'list', 'list'], [mia, '/wishes/new', 'wish-form', 'wish-new'], [leo, `/wishes/${wish}`, 'wish-theirs', 'wish-to-answer']]) {
+  for (const [page, path, mark, name] of [[mia, '/', 'their-day', 'room-with-his-day'], [mia, '/news', 'news', 'news'], [mia, '/profile/partner', 'profile-theirs', 'profile-his'], [mia, '/profile', 'profile-mine', 'profile-mine'], [mia, '/wishes', 'wishes', 'wishes'], [mia, '/list', 'list', 'list'], [mia, '/wishes/new', 'wish-form', 'wish-new'], [leo, `/wishes/${wish}`, 'wish-theirs', 'wish-to-answer']]) {
     await go(page, path)
     await page.getByTestId(mark).waitFor()
     await shot(page, name)

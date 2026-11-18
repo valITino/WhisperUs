@@ -1,5 +1,6 @@
-// "Us": my profile, our room and its people, my own settings (they follow me to every
-// device), privacy, log-in, this device, sync and a little "about". It is one of the two tabs.
+// "Us": the two of us (each a profile to look at), our room and its seats, my own
+// settings (they follow me to every device), privacy, log-in, this device, sync and a
+// little "about". One of the tabs.
 
 import { useState, type ReactNode } from 'react'
 import { version } from '../../../package.json'
@@ -7,6 +8,7 @@ import { navigate } from '../../app/router'
 import { renameRoom } from '../../data/do'
 import { useMe } from '../../data/hooks'
 import { useHousehold, usePartner } from '../../data/queries'
+import type { Member } from '../../data/types'
 import { setLang, useCopy, useLang, useT, type Lang } from '../../i18n'
 import { Avatar, Button, buzz, Card, Field, Loader, Screen, Segmented, Sheet, toast, Toggle } from '../../ui/components'
 import { Candle, WaxSeal } from '../../ui/deco/Deco'
@@ -16,7 +18,6 @@ import { useLockOn } from '../lock'
 import { Icon } from '../../ui/deco/Icon'
 import { setTheme, useTheme } from '../../ui/theme'
 import { ErrorNote } from '../onboarding/parts'
-import { ProfileBubble } from '../profile/ProfileBubble'
 import { settingsCopy } from './copy'
 import { DeviceSection } from './DeviceSection'
 import { SyncSection } from './SyncSection'
@@ -40,6 +41,41 @@ function LinkRow({ title, hint, onClick }: { title: string; hint?: string; onCli
         <span className="block text-sm font-semibold">{title}</span>
         {hint && <span className="mt-0.5 block text-xs leading-snug text-ink-soft">{hint}</span>}
       </span>
+      <Icon name="next" size={20} className="shrink-0 text-ink-soft" />
+    </button>
+  )
+}
+
+interface PersonCardProps {
+  testId: string
+  /** "You", "Your partner". */
+  label: string
+  member: Member
+  status: string
+  /** The status is a placeholder, not something they wrote. */
+  quiet?: boolean
+  statusTestId?: string
+  /** Read aloud after the name and status: where the card leads. */
+  says: string
+  to: string
+}
+
+/** One of the two: picture, name and status line. A tap opens their profile. */
+function PersonCard({ testId, label, member, status, quiet = false, statusTestId, says, to }: PersonCardProps) {
+  return (
+    <button type="button" data-testid={testId} onClick={() => navigate(to)} className="flex w-full items-center gap-4 rounded-card border border-line bg-surface p-4 pt-5 text-left active:translate-y-[2px]">
+      <Avatar avatar={member.avatar} color={member.color} accessory={member.accessory} size={64} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-2xs font-extrabold text-ink-soft">{label}</span>
+        <span className="block truncate font-display text-xl font-semibold leading-tight">{member.name}</span>
+        {status && (
+          <span className={quiet ? 'mt-1 block text-sm leading-snug text-ink-soft' : 'mt-1 block break-words text-sm font-bold leading-snug'} data-testid={statusTestId}>
+            {status}
+          </span>
+        )}
+      </span>
+      {/* Read aloud after the name and status, so what is seen is also what is said. */}
+      <span className="sr-only">{says}</span>
       <Icon name="next" size={20} className="shrink-0 text-ink-soft" />
     </button>
   )
@@ -111,49 +147,22 @@ export function SettingsHome() {
         <h1 className="text-2xl">{c.title}</h1>
       </header>
       <main className="app-column flex flex-col gap-8 px-4 pt-4">
-        {/* My profile */}
-        {member ? (
-          <button
-            type="button"
-            data-testid="my-profile"
-            onClick={() => navigate('/settings/profile')}
-            className="flex w-full items-center gap-4 rounded-card border border-line bg-surface p-4 pt-5 text-left active:translate-y-[2px]"
-          >
-            <Avatar avatar={member.avatar} color={member.color} accessory={member.accessory} size={68} />
-            <span className="min-w-0 flex-1">
-              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="truncate font-display text-xl font-semibold leading-tight">{member.name}</span>
-              </span>
-              <span className={member.status ? 'mt-1 block break-words text-sm font-bold leading-snug' : 'mt-1 block text-sm leading-snug text-ink-soft'} data-testid="my-status">
-                {member.status || c.profile.noStatus}
-              </span>
-            </span>
-            {/* Read aloud after the name and status, so what is seen is also what is said. */}
-            <span className="sr-only">{c.profile.edit}</span>
-            <Icon name="next" size={20} className="shrink-0 text-ink-soft" />
-          </button>
-        ) : (
-          <Card>
-            <Loader />
-          </Card>
-        )}
+        {/* The two of us: each a profile to look at. */}
+        <div className="flex flex-col gap-3" data-testid="us-people">
+          {member ? (
+            <PersonCard testId="my-profile" label={c.profile.youLabel} member={member} status={member.status || c.profile.noStatus} quiet={!member.status} statusTestId="my-status" says={c.profile.open} to="/profile" />
+          ) : (
+            <Card>
+              <Loader />
+            </Card>
+          )}
+          {partner && <PersonCard testId="partner-card" label={c.room.partnerLabel} member={partner} status={partner.status ?? ''} says={c.profile.openTheirs(partner.name)} to="/profile/partner" />}
+        </div>
 
         {/* Our room */}
         <Section id="room" title={c.room.title}>
           <div className="flex flex-col gap-3">
-            {partner ? (
-              <Card data-testid="partner-card">
-                <p className="mb-2.5 text-2xs font-extrabold text-ink-soft">{c.room.partnerLabel}</p>
-                <ProfileBubble
-                  name={partner.name}
-                  status={partner.status ?? ''}
-                  placeholder={c.room.partnerNoStatus}
-                  avatar={partner.avatar}
-                  color={partner.color}
-                  accessory={partner.accessory}
-                />
-              </Card>
-            ) : partner === null ? (
+            {partner === null && (
               <Card pad={false} className="flex items-center gap-3 p-4" data-testid="alone-card">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-base">{c.room.aloneTitle}</h3>
@@ -166,7 +175,7 @@ export function SettingsHome() {
                 </div>
                 <Candle size={64} lit={false} className="shrink-0" />
               </Card>
-            ) : null}
+            )}
 
             <Card pad={false} className="divide-y divide-line overflow-hidden">
               <button type="button" onClick={() => setRenaming(true)} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left active:bg-haze/40">

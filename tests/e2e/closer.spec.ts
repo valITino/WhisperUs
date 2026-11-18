@@ -87,10 +87,14 @@ test('somebody new takes a first look at themselves, and decides what of it is s
 
   // She reads where he stands on the one question he showed. His why and his other answer are nowhere she could find them.
   await arrive(leo, mia)
+  // It is on his profile, and her own page of questions leads there.
   await go(mia, '/about')
-  await expect(mia.getByTestId('about-theirs-list')).toContainText('How easy is it for you to say what you would like?')
-  await expect(mia.getByTestId('about-theirs-list')).toContainText('Rather "Very hard"')
-  await expect(mia.getByTestId('about-theirs-list').getByRole('listitem')).toHaveCount(1)
+  await expect(mia.getByTestId('about-theirs')).toContainText('1 answer, on their profile')
+  await mia.getByTestId('about-theirs').click()
+  await expect(mia.getByTestId('profile-about-list')).toContainText('How easy is it for you to say what you would like?')
+  await expect(mia.getByTestId('profile-about-list')).toContainText('Rather "Very hard"')
+  await expect(mia.getByTestId('profile-about-list').getByRole('listitem')).toHaveCount(1)
+  await expect(mia.getByTestId('profile-theirs')).not.toContainText('Nobody ever asked')
   const hers = await cloudFor(mia)
   expect(hers).not.toContain('Nobody ever asked')
   expect(hers).not.toContain('about.no-words')

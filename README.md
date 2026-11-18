@@ -59,8 +59,8 @@ for you).
    a reminder.
 
 Under every question stands **Who sees this?** The answer that is already chosen is
-**Only me**. Everything is found again later: the questions (five more of them) under
-**Cockpit, About me**.
+**Only me**. Everything is found again later: the questions (five more of them) on
+**your profile** (tap your picture on the room), under **The questions about you**.
 
 ## The check-in
 
@@ -109,6 +109,22 @@ or **Not for me**, with a word to go with it ("I like that you asked"), what it 
 them, and a why. A "not now" can become a "yes" later. While a wish waits you can reword
 it; once it is answered it stays as it was answered. **Take it back** makes it disappear
 for both of you, answer included.
+
+## What is new, and where to find each other
+
+**The bell** on the room carries the number of things you have not looked at yet: an
+envelope that opened for you, an answer, a wish, something new in common on the list,
+something your partner showed about themselves. The newest are listed right under it,
+and **News** has all of them, with what came before. A line says who and what kind of
+thing, never what is in it. Tap it and you are there. "New" stays until you have looked
+at the thing itself. What you have looked at is remembered on your phone only, and the
+news never tell your partner that you read something.
+
+**Profiles.** Tap your partner's name on the room (or their card under **Us**) to see
+what they chose to show you: how they are, their answers about themselves, what you have
+in common on the list, their wishes and what they sealed. Tap your own picture to see
+**your profile**: exactly what your partner sees of you, and nothing you kept to
+yourself. **Edit profile** changes your name, picture and status line.
 
 ## The cockpit
 
@@ -209,6 +225,8 @@ and then **Allow** when Chrome asks. You then hear when something was sealed for
 when an envelope opened for you, when your envelope was answered, when your partner has
 a wish for you or answered yours, when the list has something new in common, and, if you
 asked for it, when it is time to check in. Every kind has its own switch.
+
+With notifications off nothing is lost: the same news waits behind the bell on the room.
 
 ## When something is off
 

@@ -28,7 +28,7 @@ export const helloCopy = {
       body: 'A few questions about you, only for you at first. About three minutes.',
       action: 'Begin',
       decline: 'No, thank you',
-      declined: 'It is gone from the room. The questions stay under Cockpit, About me.',
+      declined: 'It is gone from the room. The questions stay on your profile.',
     },
   },
   de: {
@@ -58,7 +58,7 @@ export const helloCopy = {
       body: 'Ein paar Fragen zu dir, zuerst nur für dich. Etwa drei Minuten.',
       action: 'Anfangen',
       decline: 'Nein, danke',
-      declined: 'Er ist aus dem Zimmer verschwunden. Die Fragen bleiben unter Cockpit, Über mich.',
+      declined: 'Er ist aus dem Zimmer verschwunden. Die Fragen bleiben in deinem Profil.',
     },
   },
 }

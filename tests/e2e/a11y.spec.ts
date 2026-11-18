@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
-import { go, kit, makeCouple, openPhone, resetCloud, sealInBooth, settle, tabs, type Kit } from './ship.helpers'
+import { go, kit, makeCouple, openPhone, resetCloud, sealInBooth, settle, syncNow, tabs, type Kit } from './ship.helpers'
 
 // A guard for the basics on every screen, at the narrowest phone we design for:
 //   - every control has a name (read from the browser's accessibility tree)
@@ -74,6 +74,31 @@ for (const lang of ['en', 'de'] as const) {
     await expect(leo.getByTestId('reply')).toBeVisible()
     await settle(leo)
 
+    // Closer: check-ins with parts shown, answers on the list that meet, something of their
+    // own on it, answers about themselves, a wish that waits and one that was answered.
+    const reason = { chips: ['checkin.rested', 'checkin.head'], own: ['a very long word of my own for this'], note: 'A sentence that goes on for a while, to see whether it still fits.' }
+    const hers2 = await k.evaluate(async (app: Kit, why) => {
+      for (const daysAgo of [0, 1, 2, 4, 5, 8]) {
+        const at = new Date(Date.now() - daysAgo * 86_400_000)
+        await app.actions.saveCheckin({ body: { energy: 4, mood: 2, close: 5, open: 1, desire: 5, kinky: 3, thoughts: 3, fantasies: ['soft.massage'], happened: ['tender', 'sex', 'kinky'], why }, share: ['close', 'open', 'mood', 'happened'], at })
+      }
+      for (const [item, lean] of [['soft.massage', 'yes'], ['words.whisper', 'maybe'], ['senses.blindfolds', 'dream'], ['looks.mirrors', 'no']]) await app.actions.saveLeaning(item, { lean, pull: 4, why: { chips: ['leaning.trust'], own: [], note: null } }, { showWhy: true })
+      await app.actions.addIdea('Something of our own, written out at full length to fill the line', 'own')
+      for (const [question, value] of [['say', 2], ['no', 1], ['arrive', 4]]) await app.actions.saveAbout(question, { value, why: { chips: ['about.no-words'], own: [], note: null } }, ['value', 'why'])
+      return app.actions.makeWish({ text: 'A wish that is as long as a wish may be, because people who long for something do not count their words. '.repeat(3).trim(), item: 'soft.massage', mode: 'do', want: 5, why })
+    }, reason)
+    await settle(mia)
+    await syncNow(leo)
+    const his2 = await (await kit(leo)).evaluate(async (app: Kit, wish) => {
+      await app.actions.saveCheckin({ body: { energy: 2, close: 4, open: 5, desire: 2 }, share: ['close', 'open', 'desire'] })
+      for (const item of ['soft.massage', 'words.whisper', 'senses.blindfolds']) await app.actions.saveLeaning(item, { lean: 'yes', pull: 2 })
+      for (const [question, value] of [['say', 4], ['arrive', 2]]) await app.actions.saveAbout(question, { value }, ['value'])
+      await app.actions.answerWish(wish, { decision: 'later', taps: ['glad', 'us'], heat: 3, why: { chips: ['decision.another-time'], own: [], note: 'This week is too full, ask me on Sunday.' } })
+      return app.actions.makeWish({ text: 'Tell me one thing.', item: null, mode: 'dream', want: null, why: { chips: [], own: [], note: null } })
+    }, hers2)
+    await settle(leo)
+    await settle(mia)
+
     if (lang === 'de') {
       for (const page of [mia, leo]) {
         await page.goto('/#/settings')
@@ -96,6 +121,18 @@ for (const lang of ['en', 'de'] as const) {
       ['notifications', '/settings/notifications'],
       ['sync', '/settings/sync'],
       ['app lock', '/settings/lock'],
+      ['the first look', '/hello'],
+      ['the check-in', '/checkin'],
+      ['wishes', '/wishes'],
+      ['a new wish', '/wishes/new'],
+      ['her wish, answered', `/wishes/${hers2}`],
+      ['his wish, to answer', `/wishes/${his2}`],
+      ['a wish that is gone', '/wishes/00000000-0000-4000-8000-000000000000'],
+      ['the list', '/list'],
+      ['the cockpit, hers', '/cockpit'],
+      ['the cockpit, for two', '/cockpit/us'],
+      ['about me', '/about'],
+      ['check-in times', '/settings/checkin'],
     ]
     for (const [name, path] of hers) {
       await show(mia, path, name)
@@ -108,11 +145,43 @@ for (const lang of ['en', 'de'] as const) {
       ['an envelope he opened and answered', `/envelope/${out}`],
       ['an envelope that waits for its time', `/envelope/${timed}`],
       ['people, not the admin', '/settings/people'],
+      ['her wish, his answer', `/wishes/${hers2}`],
+      ['his cockpit for two', '/cockpit/us'],
+      ['his room, with her day', '/'],
     ]
     for (const [name, path] of his) {
       await show(leo, path, name)
       await basics(leo, `${name} (${lang})`)
     }
+
+    // Closer, the parts behind a tap: the check-in with its why and its parts shown, an item
+    // of the list where they meet, something of one's own, a question about oneself.
+    await show(mia, '/checkin', 'check-in, open')
+    await mia.getByTestId('share-choice').getByRole('radio').nth(1).click()
+    await basics(mia, `the check-in, shown in parts (${lang})`)
+    await mia.getByRole('button', { name: lang === 'de' ? 'Diesen Check-in entfernen' : 'Remove this check-in' }).click()
+    await expect(mia.getByRole('dialog')).toBeVisible()
+    await basics(mia, `remove check-in sheet (${lang})`, { sheet: true })
+    await mia.keyboard.press('Escape')
+    await show(mia, '/list', 'list, an item')
+    await mia.getByTestId('item-soft.massage').click()
+    await expect(mia.getByTestId('item-match')).toBeVisible()
+    await basics(mia, `item sheet, where they meet (${lang})`, { sheet: true })
+    await mia.keyboard.press('Escape')
+    await expect(mia.getByRole('dialog')).toHaveCount(0)
+    await mia.getByRole('button', { name: lang === 'de' ? 'Etwas Eigenes schreiben' : 'Write your own' }).click()
+    await expect(mia.getByRole('dialog')).toBeVisible()
+    await basics(mia, `own idea sheet (${lang})`, { sheet: true })
+    await mia.keyboard.press('Escape')
+    await show(mia, '/about', 'about, a question')
+    await mia.getByTestId('about-say').click()
+    await expect(mia.getByRole('dialog')).toBeVisible()
+    await basics(mia, `question sheet (${lang})`, { sheet: true })
+    await mia.keyboard.press('Escape')
+    await show(leo, `/wishes/${hers2}`, 'changing an answer')
+    await leo.getByRole('button', { name: lang === 'de' ? 'Meine Antwort ändern' : 'Change my answer' }).click()
+    await expect(leo.getByTestId('wish-answer-form')).toBeVisible()
+    await basics(leo, `wish answer form (${lang})`)
 
     // The booth, step by step, and what she sealed, read again.
     await show(mia, '/booth', 'booth')
@@ -210,9 +279,30 @@ test('the start screens keep the basics, and so does a room of one', async ({ br
   await expect(page.getByRole('heading', { name: 'Your room is open' })).toBeVisible()
   await basics(page, 'the room is open')
   await page.getByRole('button', { name: 'Done' }).click()
+
+  // The first look, step by step: the questions, the list, the two moments of the day.
+  await expect(page.getByTestId('hello-step')).toHaveText('1 of 9')
+  await basics(page, 'first look, before it begins')
+  await page.getByRole('button', { name: 'Begin', exact: true }).click()
+  await expect(page.getByTestId('hello-step')).toHaveText('2 of 9')
+  await page.getByTestId('question-say').getByRole('radio', { name: /^2 \/ 5/ }).click()
+  await page.getByTestId('question-say').getByRole('button', { name: 'Add a why' }).click()
+  await basics(page, 'first look, a question with its why')
+  for (let i = 0; i < 6; i++) await next()
+  await expect(page.getByTestId('hello-step')).toHaveText('8 of 9')
+  await basics(page, 'first look, the list')
+  await next()
+  await expect(page.getByTestId('hello-step')).toHaveText('9 of 9')
+  await basics(page, 'first look, the two moments')
+  await page.getByRole('button', { name: 'Done', exact: true }).click()
   await expect(tabs(page)).toBeVisible()
 
   for (const [name, path] of [
+    ['wishes, alone', '/wishes'],
+    ['the list, alone', '/list'],
+    ['the cockpit, empty', '/cockpit'],
+    ['the cockpit for two, alone', '/cockpit/us'],
+    ['the check-in, alone', '/checkin'],
     ['the room, alone', '/'],
     ['the booth, alone', '/booth'],
     ['Us, alone', '/settings'],

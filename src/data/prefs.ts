@@ -5,10 +5,12 @@ import { useSyncExternalStore } from 'react'
 export interface Prefs {
   /** How long the app may be out of sight before it asks for the lock code again, in seconds. 0: at once. */
   lockAfter: number
+  /** The parts of a check-in I showed the last time, offered again the next time. Null: never chose. */
+  shareCheckin: string[] | null
 }
 
 const KEY = 'whisperus.prefs'
-const defaults: Prefs = { lockAfter: 0 }
+const defaults: Prefs = { lockAfter: 0, shareCheckin: null }
 const listeners = new Set<() => void>()
 let cache: Prefs | null = null
 

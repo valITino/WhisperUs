@@ -4,10 +4,10 @@
 // Tests and local development run against it, because they must never touch real data.
 // Keep its rules in step with supabase/migrations.
 
-import { envelopeEvent, keyEvent, langOf, plan, type Delivery, type EnvelopeChange, type PushEvent } from '../../../supabase/functions/push/logic.ts'
+import { checkinDue, envelopeEvent, keyEvent, langOf, matchEvent, plan, roomClock, roomDay, wishEvent, type Delivery, type EnvelopeChange, type PushEvent, type WishChange } from '../../../supabase/functions/push/logic.ts'
 import { BackendError, PUSH_TYPES, type BackendErrorDetails, type Invite, type InvitePeek, type Membership, type PersonCard, type ProfileInput, type PullResult, type PushOp, type PushSubscriptionInput, type PushType } from '../backend.ts'
 import { lockMinutes, nameKey, PIN_TRIES, pinProblem } from '../pin.ts'
-import { LAYERS, SYNC_TABLES, type ID, type ISO, type Layer, type SyncTable } from '../types.ts'
+import { LATER_TABLES, LAYERS, SYNC_TABLES, type ID, type ISO, type Layer, type SyncTable } from '../types.ts'
 
 type Row = Record<string, unknown> & { id: ID }
 
@@ -98,6 +98,13 @@ export class FakeCloud {
   private pushKey: string | null = TEST_PUSH_KEY
   private listeners = new Set<(householdId: ID) => void>()
   private clock = 0
+  /** private.push_marks: when somebody was last told about a kind of news that is not told twice in a row. */
+  private marks = new Map<string, number>()
+  /**
+   * False plays a cloud from before migration 0004: it knows neither notes nor the list
+   * nor wishes. Changes to them are answered with "table_missing" and wait on the phone.
+   */
+  closer = true
 
   constructor() {
     this.reset()
@@ -114,6 +121,8 @@ export class FakeCloud {
     this.pushRows.clear()
     this.sent = []
     this.pushKey = TEST_PUSH_KEY
+    this.marks.clear()
+    this.closer = true
   }
 
   /** A strictly increasing server clock, like clock_timestamp() in Postgres. */
@@ -459,11 +468,13 @@ export class FakeCloud {
    * event and "send" each of their devices one notification. Same rules, same words.
    */
   private announce(event: PushEvent): void {
-    const envelope = this.table('envelopes').get(event.envelopeId)
+    const envelope = event.envelopeId ? this.table('envelopes').get(event.envelopeId) : undefined
+    const wish = event.wishId ? this.table('wishes').get(event.wishId) : undefined
     const now = Date.now()
     const seen = (envelope?.seen ?? {}) as Record<string, unknown>
     const open = [...this.table('keys').values()].filter((k) => k.envelopeId === event.envelopeId && !k.deletedAt && k.key !== '' && Date.parse(k.opensAt as ISO) <= now && seen[k.layer as string] == null)
     const reply = envelope?.reply as { at?: ISO } | null | undefined
+    const answer = wish?.answer as { at?: ISO } | null | undefined
     const deliveries = plan(
       event,
       {
@@ -481,6 +492,8 @@ export class FakeCloud {
               repliedAt: reply ? (reply.at ?? (envelope.createdAt as ISO)) : null,
             }
           : null,
+        // Not its words, not the decision: only who, and when.
+        wish: wish ? { deleted: Boolean(wish.deletedAt), authorId: wish.authorId as ID, createdAt: (wish.createdAt as ISO | null) ?? null, answeredAt: answer ? (answer.at ?? (wish.updatedAt as ISO)) : null } : null,
       },
       new Date(),
     )
@@ -504,12 +517,31 @@ export class FakeCloud {
       this.announce({ type: 'opened', householdId: key.householdId as ID, actorId: key.authorId as ID, envelopeId })
       this.emit(key.householdId as ID)
     }
+    this.remind()
+  }
+
+  /**
+   * The other minute job (private.remind_checkins): whoever asked to be reminded to
+   * check in at this minute of the room's clock is told, once, and nobody else is.
+   */
+  private remind(): void {
+    const at = new Date()
+    const minute = `${roomDay(at)} ${roomClock(at)}`
+    for (const member of this.members()) {
+      if (member.deletedAt || member.disabledAt || !checkinDue(member.prefs, at)) continue
+      const mark = `checkin:${member.id}:${minute}`
+      if (this.marks.has(mark)) continue
+      this.marks.set(mark, at.getTime())
+      this.announce({ type: 'checkin', householdId: member.householdId, actorId: member.id })
+    }
   }
 
   // -------------------------------------------------------------------- sync --
 
   push(userId: string, op: PushOp): void {
     const me = this.memberOf(userId) ?? reject('forbidden')
+    // A cloud from before 0004 has no such table: not a refusal, the change waits.
+    if (!this.closer && LATER_TABLES.includes(op.table)) throw new BackendError('setup', 'table_missing')
     const table = this.table(op.table)
     const existing = table.get(op.id)
     const at = this.now()
@@ -542,6 +574,10 @@ export class FakeCloud {
       if (op.table === 'envelopes') this.writeEnvelope(me, existing, wanted)
       else if (op.table === 'keys') this.writeKey(me, existing, wanted)
       else if (op.table === 'media') this.writeMedia(me, existing, wanted)
+      else if (op.table === 'notes') this.writeNote(me, existing, wanted)
+      else if (op.table === 'leanings') this.writeLeaning(me, existing, wanted)
+      else if (op.table === 'ideas') this.writeIdea(me, existing, wanted)
+      else if (op.table === 'wishes') this.writeWish(me, existing, wanted)
       else reject('forbidden')
     }
     this.emit(me.householdId)
@@ -649,13 +685,105 @@ export class FakeCloud {
     this.table('media').set(row.id, row)
   }
 
+  // ------------------------------------------- notes, the list and wishes --
+  // The rules of 0004_closer.sql.
+
+  /** private.guard_note(): what somebody shows about themselves is theirs alone to write. */
+  private writeNote(me: MemberRow, before: Row | undefined, row: Row): void {
+    if (!before) row.memberId = me.id
+    else {
+      if (before.memberId !== me.id) reject('forbidden')
+      Object.assign(row, { memberId: before.memberId, kind: before.kind, ref: before.ref })
+    }
+    if (!oneOf(row.kind, ['checkin', 'about']) || typeof row.ref !== 'string' || row.ref === '' || row.ref.length > 40 || !isObject(row.body) || tooBig(row.body, 8000) || Number.isNaN(Date.parse(String(row.at)))) reject('note_invalid')
+    // Taken back: the cloud forgets what was shown.
+    if (row.deletedAt) row.body = {}
+    this.table('notes').set(row.id, row)
+  }
+
+  /**
+   * private.guard_leaning(): an answer on the list is its author's alone to write, one per
+   * item. Only the three open answers exist here: a "not for me" never reaches the cloud.
+   */
+  private writeLeaning(me: MemberRow, before: Row | undefined, row: Row): void {
+    if (!before) row.memberId = me.id
+    else {
+      if (before.memberId !== me.id) reject('forbidden')
+      Object.assign(row, { memberId: before.memberId, item: before.item })
+    }
+    const pull = row.pull ?? null
+    if (!oneOf(row.lean, ['yes', 'maybe', 'dream']) || typeof row.item !== 'string' || row.item === '' || row.item.length > 60 || !(pull === null || (Number.isInteger(pull) && (pull as number) >= 1 && (pull as number) <= 5)) || !(row.why == null || (isObject(row.why) && !tooBig(row.why, 4000)))) reject('leaning_invalid')
+    if ([...this.table('leanings').values()].some((other) => other.id !== row.id && other.memberId === row.memberId && other.item === row.item)) reject('leaning_exists')
+    row.pull = pull
+    row.why = row.why ?? null
+    if (row.deletedAt) Object.assign(row, { pull: null, why: null })
+    this.table('leanings').set(row.id, row)
+
+    // private.push_on_leaning(): something in common is told to the other one, not again and again.
+    const becameOpen = !row.deletedAt && (!before || Boolean(before.deletedAt))
+    const other = [...this.table('leanings').values()].find((l) => l.householdId === row.householdId && l.memberId !== me.id && l.item === row.item && !l.deletedAt)
+    const mark = `matched:${other?.memberId as ID | undefined}`
+    const now = Date.now()
+    if (other && matchEvent(becameOpen, true, this.marks.get(mark) ?? null, now)) {
+      this.marks.set(mark, now)
+      this.announce({ type: 'matched', householdId: me.householdId, actorId: me.id })
+    }
+  }
+
+  /** private.guard_idea(): what somebody wrote onto the list is theirs to change and to take off. */
+  private writeIdea(me: MemberRow, before: Row | undefined, row: Row): void {
+    if (!before) row.authorId = me.id
+    else {
+      if (before.authorId !== me.id) reject('forbidden')
+      row.authorId = before.authorId
+    }
+    if (typeof row.label !== 'string' || row.label.length > 60 || typeof row.section !== 'string' || row.section === '' || row.section.length > 40) reject('idea_invalid')
+    if (row.deletedAt) row.label = ''
+    else if ((row.label as string).trim() === '') reject('idea_invalid')
+    this.table('ideas').set(row.id, row)
+  }
+
+  /**
+   * private.guard_wish(): the author owns the wish, the other one owns the answer. What
+   * was answered stays as it was answered; it can still be taken back.
+   */
+  private writeWish(me: MemberRow, before: Row | undefined, row: Row): void {
+    if (!before) {
+      row.authorId = me.id
+      row.answer = null
+    } else if (before.authorId === me.id) {
+      // The author cannot speak for the other one.
+      row.authorId = before.authorId
+      row.answer = before.answer
+      if (before.answer != null) Object.assign(row, { text: before.text, item: before.item, mode: before.mode, want: before.want, why: before.why })
+    } else {
+      // The other one may only answer. An answer can be replaced, not taken away.
+      const answer = row.answer ?? before.answer
+      Object.assign(row, before, { answer, updatedAt: row.updatedAt })
+    }
+    const want = row.want ?? null
+    if (typeof row.text !== 'string' || row.text.length > 400 || !oneOf(row.mode, ['do', 'dream']) || !(row.item == null || (typeof row.item === 'string' && row.item.length <= 60)) || !(want === null || (Number.isInteger(want) && (want as number) >= 1 && (want as number) <= 5)) || !isObject(row.why) || tooBig(row.why, 4000) || !(row.answer == null || (isObject(row.answer) && !tooBig(row.answer, 8000)))) reject('wish_invalid')
+    row.want = want
+    row.item = row.item ?? null
+    // Taken back: the cloud forgets its words, its why and the answer.
+    if (row.deletedAt) Object.assign(row, { text: '', item: null, want: null, why: { chips: [], own: [], note: null }, answer: null })
+    else if ((row.text as string).trim() === '') reject('wish_invalid')
+    this.table('wishes').set(row.id, row)
+
+    const type = wishEvent(before ? wishChange(before) : null, wishChange(row))
+    if (type) this.announce({ type, householdId: me.householdId, actorId: me.id, wishId: row.id })
+  }
+
   pull(userId: string, since: ISO | null): PullResult {
     const me = this.memberOf(userId)
     const tables: PullResult['tables'] = {}
     const serverTime = this.now()
     for (const name of SYNC_TABLES) {
+      // A cloud from before 0004 does not mention the later tables at all.
+      if (!this.closer && LATER_TABLES.includes(name)) continue
       const rows: Row[] = []
       if (me) {
+        const myLeanings = name === 'leanings' ? [...this.table('leanings').values()].filter((l) => l.memberId === me.id) : []
         for (const row of this.table(name).values()) {
           const mine = name === 'households' ? row.id === me.householdId : row.householdId === me.householdId
           if (!mine) continue
@@ -668,6 +796,13 @@ export class FakeCloud {
               if (row.deletedAt || opensAt > Date.parse(serverTime)) continue
               changed ||= since !== null && opensAt > Date.parse(since)
             }
+          }
+          if (name === 'leanings' && row.memberId !== me.id) {
+            // The other one's answer is mine to read only while I answer that item openly
+            // myself. It counts as news at the moment I do, although its row did not change.
+            const own = myLeanings.find((l) => l.item === row.item && !l.deletedAt)
+            if (!own) continue
+            changed ||= since !== null && (own.updatedAt as ISO) > since
           }
           if (!changed) continue
           const { announcedAt: _a, ...copy } = structuredClone(row)
@@ -727,6 +862,14 @@ const oneOf = (value: unknown, allowed: readonly string[]): boolean => typeof va
 /** Only the three layers an envelope can have. Anything else somebody slipped in is dropped. */
 function onlyLayers<T>(given: Record<string, T>): Record<string, T> {
   return Object.fromEntries(LAYERS.filter((layer) => given[layer] != null).map((layer) => [layer, given[layer]]))
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+const tooBig = (value: unknown, bytes: number): boolean => new TextEncoder().encode(JSON.stringify(value)).length > bytes
+
+const wishChange = (row: Row): WishChange => {
+  const answer = row.answer as { decision?: unknown } | null | undefined
+  return { deleted: Boolean(row.deletedAt), decision: answer ? (typeof answer.decision === 'string' ? answer.decision : '') : null }
 }
 
 const changeOf = (row: Row): EnvelopeChange => ({ openMode: String(row.openMode), deleted: Boolean(row.deletedAt), hasReply: row.reply != null })

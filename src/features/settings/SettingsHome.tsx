@@ -10,6 +10,8 @@ import { useHousehold, usePartner } from '../../data/queries'
 import { setLang, useCopy, useLang, useT, type Lang } from '../../i18n'
 import { Avatar, Button, buzz, Card, Field, Loader, Screen, Segmented, Sheet, toast, Toggle } from '../../ui/components'
 import { Candle, WaxSeal } from '../../ui/deco/Deco'
+import { checkinCopy } from '../checkin/copy'
+import { checkinTimes } from '../checkin/TimesPage'
 import { useLockOn } from '../lock'
 import { Icon } from '../../ui/deco/Icon'
 import { setTheme, useTheme } from '../../ui/theme'
@@ -89,6 +91,7 @@ function RenameSheet({ open, current, onClose }: { open: boolean; current: strin
 
 export function SettingsHome() {
   const c = useCopy(settingsCopy)
+  const cc = useCopy(checkinCopy).times
   const t = useT()
   const me = useMe()
   const partner = usePartner()
@@ -100,6 +103,7 @@ export function SettingsHome() {
   const lockOn = useLockOn()
   const [renaming, setRenaming] = useState(false)
   const member = me?.member
+  const times = checkinTimes(member?.prefs)
 
   return (
     <Screen tabs>
@@ -215,6 +219,9 @@ export function SettingsHome() {
               />
               <Toggle label={c.mine.auto} checked={theme === 'auto'} onChange={(on) => setTheme(on ? 'auto' : showing)} />
             </div>
+          </Card>
+          <Card pad={false} className="mt-3 overflow-hidden" data-testid="checkin-row">
+            <LinkRow title={cc.row} hint={times.remind ? cc.rowOn(times.times[0], times.times[1]) : cc.rowOff} onClick={() => navigate('/settings/checkin')} />
           </Card>
         </Section>
 

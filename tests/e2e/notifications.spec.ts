@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
-import { joinByLink, openRoom, tabs } from './ship.helpers'
+import { joinByLink, openRoom, skipFirstLook, tabs } from './ship.helpers'
 
 // Notifications, installing and the update note, as a person meets them under "Us".
 // Two phones against the pretend cloud: Mia tells, Leo listens. The dev server has no
@@ -100,7 +100,7 @@ async function pair(mia: Page, leo: Page): Promise<void> {
   await joinByLink(leo, await openRoom(mia))
   await expect(mia.getByTestId('partner-joined')).toContainText('Leo is in')
   await mia.getByRole('button', { name: 'Done' }).click()
-  await expect(tabs(mia)).toBeVisible()
+  await skipFirstLook(mia)
 }
 
 async function openNotifications(page: Page): Promise<void> {
@@ -163,8 +163,8 @@ test('turning notifications on, hearing from the room, muting a kind and turning
 
     // One switch for each kind of news, all on.
     const kinds = leo.getByTestId('notification-kinds').getByRole('switch')
-    await expect(kinds).toHaveCount(3)
-    for (const name of ['Something was sealed for you', 'An envelope opened for you', 'An answer to your envelope']) {
+    await expect(kinds).toHaveCount(7)
+    for (const name of ['Something was sealed for you', 'An envelope opened for you', 'An answer to your envelope', 'A wish for you', 'An answer to your wish', 'Something new in common on the list', 'Your reminder to check in']) {
       await expect(leo.getByRole('switch', { name })).toBeChecked()
     }
     // Every control is big enough for a thumb.

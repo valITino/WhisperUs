@@ -40,7 +40,20 @@ export interface MemberPrefs {
   lang?: 'en' | 'de'
   /** The hottest card or question the app may ever show this person. */
   heatMax?: Heat
+  /** When this person wants to be asked how they are. Off until they switch it on. */
+  checkin?: CheckinTimes
+  /** When they finished the first look at themselves after signing up, or put it off. */
+  firstLook?: ISO
 }
+
+/** Two moments a day, on the room's clock (Europe/Zurich), as "08:30". */
+export interface CheckinTimes {
+  /** Whether a notification reminds them at those times. */
+  remind: boolean
+  times: [string, string]
+}
+
+export const DEFAULT_CHECKIN_TIMES: CheckinTimes = { remind: false, times: ['08:30', '21:00'] }
 
 export interface Member extends SyncRow {
   name: string
@@ -188,27 +201,186 @@ export interface Media extends SyncRow {
   uploaded: boolean
 }
 
+// --------------------------------------------- what I note about myself --
+//
+// A check-in, an answer to one of the questions about myself, what I said to an item on
+// the list: the whole of it stays on the phone it was noted on (the local `diary`).
+// What its author chooses to show travels as a row of `notes` or `leanings`, and nothing
+// else of it ever does.
+
+/** How often something crossed my mind: 0 not at all … 4 all the time. */
+export type Often = 0 | 1 | 2 | 3 | 4
+
+/** How I am right now. Every part can be left out, and each part is shown by itself. */
+export interface CheckinBody {
+  /** 1 drained … 5 wide awake */
+  energy?: Score5
+  /** 1 heavy … 5 light */
+  mood?: Score5
+  /** How close I feel to the other one: 1 far away … 5 very close */
+  close?: Score5
+  /** How open I am for closeness: 1 slow today, please … 5 come closer */
+  open?: Score5
+  /** 1 quiet … 5 on fire */
+  desire?: Score5
+  /** 1 not at all … 5 very */
+  kinky?: Score5
+  /** How often sex crossed my mind since the last check-in. */
+  thoughts?: Often
+  /** What was on my mind: items of the list, by id. */
+  fantasies?: string[]
+  /** What there was since the last check-in, by id (src/features/checkin/library.ts). */
+  happened?: string[]
+  why?: Why
+}
+
+export type CheckinPart = keyof CheckinBody
+export const CHECKIN_PARTS: readonly CheckinPart[] = ['energy', 'mood', 'close', 'open', 'desire', 'kinky', 'thoughts', 'fantasies', 'happened', 'why']
+/** The parts of a check-in that are a step on a scale of five. */
+export const CHECKIN_SCALES = ['energy', 'mood', 'close', 'open', 'desire', 'kinky'] as const
+export type CheckinScale = (typeof CHECKIN_SCALES)[number]
+
+/** The first or the second check-in of a day. The day turns at four in the morning. */
+export type Half = 'am' | 'pm'
+
+/** An answer to one of the questions about myself (src/features/about/library.ts). */
+export interface AboutBody {
+  value?: Score5
+  why?: Why
+}
+export type AboutPart = keyof AboutBody
+
+/** yes: I would like that.  maybe: I am curious.  dream: only in my head.  no: not for me. */
+export type Lean = 'yes' | 'maybe' | 'dream' | 'no'
+/** What can meet the other one's answer. A "no" never does. */
+export type OpenLean = Exclude<Lean, 'no'>
+
+/** What I said to one item of the list. */
+export interface LeaningBody {
+  lean: Lean
+  /** How strong the pull is. */
+  pull?: Score5
+  why?: Why
+  /** Kept to myself: it does not leave this phone and can meet nothing. */
+  quiet?: boolean
+}
+
+export type NoteKind = 'checkin' | 'about'
+export type DiaryKind = NoteKind | 'leaning'
+
+/**
+ * Something a person noted about themselves and chose to show. `body` holds only the
+ * parts they opened; an empty body means nothing is shown (any more).
+ */
+export interface Note extends SyncRow {
+  memberId: ID
+  kind: NoteKind
+  /** checkin: the day and its half, "2026-11-17.am". about: the question's id. */
+  ref: string
+  /** When it was noted. */
+  at: ISO
+  body: Record<string, unknown>
+}
+
+/**
+ * "I would like that", "I am curious" or "only in my head" to one item of the list. The
+ * other one's phone receives this row only once they have answered that item with one
+ * of the three as well. A "not for me" has no row at all: it never leaves the phone it
+ * was tapped on. Neither does anything kept quiet.
+ */
+export interface Leaning extends SyncRow {
+  memberId: ID
+  /** An item of the app's list ("soft.massage") or the id of something the two of them wrote. */
+  item: string
+  lean: OpenLean
+  pull: Score5 | null
+  /** Only once its author shows it. */
+  why: Why | null
+}
+
+/** An item one of the two wrote onto the list, in their own words. */
+export interface Idea extends SyncRow {
+  authorId: ID
+  label: string
+  /** The group of the list it stands in (src/features/list/library.ts). */
+  section: string
+}
+
+/** yes: I am in.  later: not now, ask me again.  talk: let us talk first.  no: not for me. */
+export type Decision = 'yes' | 'later' | 'talk' | 'no'
+/** do: I would like us to do this.  dream: a fantasy that may stay one; I want you to know it. */
+export type WishMode = 'do' | 'dream'
+
+/** The other one's answer to a wish. Always with room for a why. */
+export interface WishAnswer {
+  /** Null for a wish that asks for no decision ("dream") when none was given. */
+  decision: Decision | null
+  /** Warm lines to go with it, by id (src/features/wishes/library.ts). */
+  taps: string[]
+  /** What it does to me. */
+  heat: Heat | null
+  why: Why
+  at: ISO
+}
+
+/**
+ * Something one of you wishes for and says so. The other one reads it at once and
+ * answers; nothing about it is sealed.
+ */
+export interface Wish extends SyncRow {
+  authorId: ID
+  /** The wish, in its author's words. */
+  text: string
+  /** The item of the list it belongs to, if any. */
+  item: string | null
+  mode: WishMode
+  /** How much I want it: 1 a passing thought … 5 I long for it. */
+  want: Score5 | null
+  why: Why
+  /** Only the other one can write this. */
+  answer: WishAnswer | null
+}
+
 export interface TableRows {
   households: Household
   members: Member
   envelopes: Envelope
   keys: LayerKey
   media: Media
+  notes: Note
+  leanings: Leaning
+  ideas: Idea
+  wishes: Wish
 }
 
 export type SyncTable = keyof TableRows
 
 /** Order matters: parents before children, so a first sync never trips a foreign key. */
-export const SYNC_TABLES: readonly SyncTable[] = ['households', 'members', 'envelopes', 'keys', 'media']
+export const SYNC_TABLES: readonly SyncTable[] = ['households', 'members', 'envelopes', 'keys', 'media', 'notes', 'leanings', 'ideas', 'wishes']
 
 /** Tables the app may create rows in. Rooms and members are made by pairing only. */
-export const WRITABLE_TABLES: readonly SyncTable[] = ['envelopes', 'keys', 'media']
+export const WRITABLE_TABLES: readonly SyncTable[] = ['envelopes', 'keys', 'media', 'notes', 'leanings', 'ideas', 'wishes']
 
 /**
- * Tables that came with a later migration. A cloud that has not been updated yet does not
- * know them: changes to them wait on the phone instead of being refused. None so far.
+ * Tables that came with a later migration (0004). A cloud that has not been updated yet
+ * does not know them: changes to them wait on the phone instead of being refused.
  */
-export const LATER_TABLES: readonly SyncTable[] = []
+export const LATER_TABLES: readonly SyncTable[] = ['notes', 'leanings', 'ideas', 'wishes']
 
 export const newId = (): ID => crypto.randomUUID()
 export const nowIso = (): ISO => new Date().toISOString()
+
+/**
+ * An id that is the same on every device for the same thing: my check-in of this
+ * morning, my answer to this question, what I said to this item. So two of my devices
+ * can never make two rows of it.
+ */
+export async function stableId(...parts: string[]): Promise<ID> {
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(parts.join('\u0000'))))
+  const bytes = hash.slice(0, 16)
+  // Marked as a name-based id (version 5, RFC 4122 variant), so it reads as a proper UUID.
+  bytes[6] = (bytes[6] & 0x0f) | 0x50
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}

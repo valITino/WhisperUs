@@ -8,6 +8,7 @@
 //   /settings/pin              PIN and devices: change PIN, log out other devices, log out
 //   /settings/notifications    notifications on this device, and which kinds
 //   /settings/lock             the app lock of this device
+//   /settings/checkin          the two moments of the day for the check-in, and its reminder
 //   /settings/sync             what is waiting or refused, and what to do about it
 //   /settings/welcome          right after opening a room: you are the admin, then the invite
 
@@ -15,6 +16,7 @@ import { MotionConfig } from 'motion/react'
 import type { Route } from '../../app/router'
 import { useMe } from '../../data/hooks'
 import { NotificationsPage } from './NotificationsPage'
+import { TimesPage } from '../checkin/TimesPage'
 import { LockSettings } from '../lock'
 import { BackInPage, FirstSteps, InvitePage } from './PairingPages'
 import { PeoplePage } from './PeoplePage'
@@ -56,6 +58,9 @@ export function SettingsRoutes({ route }: { route: Route }) {
       break
     case '/settings/lock':
       page = <LockSettings />
+      break
+    case '/settings/checkin':
+      page = <TimesPage />
       break
     case '/settings/sync':
       page = <SyncPage />

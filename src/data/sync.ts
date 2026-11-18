@@ -328,12 +328,37 @@ export class SyncEngine {
         return k.authorId !== me && envelope.layers[k.layer] == null
       })
       .map((k) => k.id)
-    if (gone.length === 0 && dead.length === 0 && stale.length === 0) return
-    await this.db.transaction('rw', this.db.vault, this.db.blobs, this.db.keys, this.db.envelopes, async () => {
-      for (const id of telling) await this.db.envelopes.update(id, { teaser: null, heatOutside: null, reply: null, layers: {} })
-      if (gone.length > 0) await this.db.vault.where('envelopeId').anyOf(gone).delete()
-      if (dead.length > 0) await this.db.blobs.bulkDelete(dead)
-      if (stale.length > 0) await this.db.keys.bulkDelete(stale)
+    if (gone.length > 0 || dead.length > 0 || stale.length > 0) {
+      await this.db.transaction('rw', this.db.vault, this.db.blobs, this.db.keys, this.db.envelopes, async () => {
+        for (const id of telling) await this.db.envelopes.update(id, { teaser: null, heatOutside: null, reply: null, layers: {} })
+        if (gone.length > 0) await this.db.vault.where('envelopeId').anyOf(gone).delete()
+        if (dead.length > 0) await this.db.blobs.bulkDelete(dead)
+        if (stale.length > 0) await this.db.keys.bulkDelete(stale)
+      })
+    }
+    await this.tidyCloser(me)
+  }
+
+  /**
+   * The same for what came with wishes and the list. What was taken back says nothing
+   * any more on this phone either. And an answer of the other one's on the list stays here
+   * only while I answer that item openly myself: once I take mine back, theirs goes.
+   */
+  private async tidyCloser(me: ID | undefined): Promise<void> {
+    const leanings = await this.db.leanings.toArray()
+    const mine = new Set(leanings.filter((l) => l.memberId === me && !l.deletedAt).map((l) => l.item))
+    const unmet = leanings.filter((l) => l.memberId !== me && !mine.has(l.item)).map((l) => l.id)
+    const quietLeanings = leanings.filter((l) => l.deletedAt && (l.pull !== null || l.why !== null)).map((l) => l.id)
+    const notes = (await this.db.notes.filter((n) => Boolean(n.deletedAt) && Object.keys(n.body).length > 0).primaryKeys()) as ID[]
+    const ideas = (await this.db.ideas.filter((i) => Boolean(i.deletedAt) && i.label !== '').primaryKeys()) as ID[]
+    const wishes = (await this.db.wishes.filter((w) => Boolean(w.deletedAt) && (w.text !== '' || w.answer !== null || w.item !== null)).primaryKeys()) as ID[]
+    if (unmet.length + quietLeanings.length + notes.length + ideas.length + wishes.length === 0) return
+    await this.db.transaction('rw', this.db.leanings, this.db.notes, this.db.ideas, this.db.wishes, async () => {
+      if (unmet.length > 0) await this.db.leanings.bulkDelete(unmet)
+      for (const id of quietLeanings) if (!unmet.includes(id)) await this.db.leanings.update(id, { pull: null, why: null })
+      for (const id of notes) await this.db.notes.update(id, { body: {} })
+      for (const id of ideas) await this.db.ideas.update(id, { label: '' })
+      for (const id of wishes) await this.db.wishes.update(id, { text: '', item: null, want: null, why: { chips: [], own: [], note: null }, answer: null })
     })
   }
 

@@ -60,6 +60,7 @@ function fromDatabase(error: { message: string; code?: string }, status: number)
   // Two people in one room cannot share a name: the unique index says no.
   if (error.code === '23505' && error.message.includes('members_household_name_key')) return new BackendError('rejected', 'name_taken', error.message)
   if (error.code === '23505' && error.message.includes('keys_envelope_layer_key')) return new BackendError('rejected', 'key_exists', error.message)
+  if (error.code === '23505' && error.message.includes('leanings_member_item_key')) return new BackendError('rejected', 'leaning_exists', error.message)
   const known = KNOWN_CODES.find((code) => error.message === code)
   return new BackendError('rejected', known ?? error.code ?? 'rejected', error.message)
 }

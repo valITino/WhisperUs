@@ -145,7 +145,13 @@ export function SyncPage() {
                   <Fact label={c.sync.waiting} value={status.pending} testId="sync-pending" />
                   <Fact label={c.sync.files} value={status.uploads} testId="sync-uploads" />
                   <Fact label={c.sync.refused} value={status.stuck} testId="sync-stuck" />
+                  {status.later > 0 && <Fact label={c.sync.later} value={status.later} testId="sync-later" />}
                 </dl>
+                {status.later > 0 && (
+                  <p className="mt-3 text-xs leading-snug text-ink-soft" data-testid="sync-later-hint">
+                    {c.sync.laterHint(status.later)}
+                  </p>
+                )}
                 {status.lastError && (
                   <div className="mt-3 rounded-field border border-line bg-ground px-3 py-2.5">
                     <p className="text-2xs font-extrabold text-ink-soft">{c.sync.lastError}</p>

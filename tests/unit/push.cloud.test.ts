@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { answer, markSeen, openLayers, sealEnvelope, takeBack, type Draft } from '../../src/data/actions'
+import { answer, markSeen, openLayers, sealEnvelope, takeBack, updateMyProfile, type Draft } from '../../src/data/actions'
+import { saveCheckin, saveLeaning } from '../../src/data/journal'
+import { answerWish, changeWish, makeWish, takeBackWish } from '../../src/data/wishes'
 import { PUSH_TYPES, type PushSubscriptionInput } from '../../src/data/backend'
 import { FakeCloud, TEST_PUSH_KEY } from '../../src/data/fake/cloudCore'
 import { PushControl, type DeviceSubscription, type Permission, type PushDevice, type PushMemory } from '../../src/data/push'
@@ -228,15 +230,18 @@ describe('signing a device up', () => {
   })
 
   it('layers opened one after the other are each an opening, layers opened together are one', async () => {
+    // From now on, not from a fixed date: the cloud's clock never runs backwards, so a
+    // date that has passed in the real world would make "five minutes later" look like "at once".
+    const start = Date.now()
     vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date('2026-11-13T17:00:00Z'))
+    vi.setSystemTime(new Date(start))
     await notifications(him, 'leo-phone').control.turnOn()
     const id = await seal(her)
 
     await release(her, id, ['feel'])
     expect(kinds()).toEqual(['sealed', 'opened'])
     // The words follow five minutes later: that is a new moment.
-    vi.setSystemTime(new Date('2026-11-13T17:05:00Z'))
+    vi.setSystemTime(new Date(start + 5 * 60_000))
     await release(her, id, ['words'])
     expect(kinds()).toEqual(['sealed', 'opened', 'opened'])
   })
@@ -677,5 +682,128 @@ describe("the cloud's rules for subscriptions", () => {
     cloud.reset()
     expect(cloud.sentPushes()).toEqual([])
     expect(cloud.pushSubscriptions()).toEqual([])
+  })
+})
+
+describe('wishes, the list and the reminder', () => {
+  const WISH = 'A whole evening that is only ours'
+  const REASON = { chips: ['wish.long'], own: ['only with you'], note: 'Because of that night in the rain.' }
+  const wish = async () => {
+    const id = await makeWish(her.kit, { text: WISH, item: 'pace.unhurried', mode: 'do', want: 5, why: REASON })
+    await her.engine.sync()
+    await him.engine.sync()
+    return id
+  }
+  const decide = async (id: ID, decision: 'yes' | 'later' | 'no', note = 'I like that you asked.') => {
+    await answerWish(him.kit, id, { decision, taps: ['glad'], heat: 3, why: { chips: [], own: [], note } })
+    await him.engine.sync()
+  }
+
+  it('a wish is told to the other one, its answer to the one who wished, and neither says what', async () => {
+    await notifications(him, 'leo-phone').control.turnOn()
+    await notifications(her, 'mia-phone').control.turnOn()
+    const id = await wish()
+    expect(cloud.sentPushes()).toMatchObject([{ memberId: hisId, urgency: 'normal', message: { type: 'wished', body: 'Mia has a wish for you.', tag: `wish-${id}`, url: `/wishes/${id}` } }])
+
+    await decide(id, 'no', 'Not my thing, and I am glad you told me.')
+    expect(cloud.sentPushes().at(-1)).toMatchObject({ memberId: herId, message: { type: 'decided', body: 'Leo answered your wish.', url: `/wishes/${id}` } })
+    const all = JSON.stringify(cloud.sentPushes())
+    for (const kept of [WISH, 'only with you', 'the rain', 'unhurried', 'Not my thing', '"no"', 'glad']) expect(all).not.toContain(kept)
+  })
+
+  it('rewording a wish or the why of an answer is not news; a decision that changes is', async () => {
+    await notifications(him, 'leo-phone').control.turnOn()
+    await notifications(her, 'mia-phone').control.turnOn()
+    const id = await wish()
+    await changeWish(her.kit, id, { text: 'A whole weekend, then', item: null, mode: 'do', want: 4, why: REASON })
+    await her.engine.sync()
+    await him.engine.sync()
+    expect(kinds()).toEqual(['wished'])
+
+    await decide(id, 'later')
+    await decide(id, 'later', 'Next week, gladly.')
+    expect(kinds()).toEqual(['wished', 'decided'])
+    await decide(id, 'yes')
+    expect(kinds()).toEqual(['wished', 'decided', 'decided'])
+  })
+
+  it('a wish that is taken back is not announced, and neither is an answer to it', async () => {
+    await notifications(him, 'leo-phone').control.turnOn()
+    him.backend.online = false
+    const id = await makeWish(her.kit, { text: WISH, item: null, mode: 'do', want: null, why: REASON })
+    await takeBackWish(her.kit, id)
+    await her.engine.sync()
+    expect(cloud.sentPushes()).toEqual([])
+  })
+
+  it('something in common is told to the other one once, and not for every item of a long evening with the list', async () => {
+    await notifications(him, 'leo-phone').control.turnOn()
+    await notifications(her, 'mia-phone').control.turnOn()
+    for (const item of ['soft.massage', 'words.whisper', 'pace.unhurried']) await saveLeaning(her.kit, item, { lean: 'yes' })
+    await her.engine.sync()
+    // Nothing in common yet: nobody hears anything.
+    expect(cloud.sentPushes()).toEqual([])
+
+    for (const item of ['soft.massage', 'words.whisper', 'pace.unhurried', 'play.roles']) await saveLeaning(him.kit, item, { lean: 'maybe' })
+    await him.engine.sync()
+    expect(cloud.sentPushes()).toMatchObject([{ memberId: herId, message: { type: 'matched', body: 'You and Leo have something new in common.', tag: 'list', url: '/list' } }])
+    expect(JSON.stringify(cloud.sentPushes())).not.toMatch(/massage|whisper|unhurried|maybe/)
+
+    // A "not for me" and an answer kept quiet meet nothing, so there is nothing to tell.
+    await saveLeaning(her.kit, 'play.roles', { lean: 'no' })
+    await saveLeaning(her.kit, 'looks.mirrors', { lean: 'yes', quiet: true })
+    await her.engine.sync()
+    expect(kinds()).toEqual(['matched'])
+  })
+
+  it('changing the strength of an answer both already share is no news', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const start = Date.now()
+    vi.setSystemTime(new Date(start))
+    await notifications(him, 'leo-phone').control.turnOn()
+    await saveLeaning(him.kit, 'soft.massage', { lean: 'yes' })
+    await him.engine.sync()
+    await saveLeaning(her.kit, 'soft.massage', { lean: 'yes', pull: 2 })
+    await her.engine.sync()
+    expect(kinds()).toEqual(['matched'])
+    vi.setSystemTime(new Date(start + 3_600_000))
+    await saveLeaning(her.kit, 'soft.massage', { lean: 'dream', pull: 5 })
+    await her.engine.sync()
+    expect(kinds()).toEqual(['matched'])
+    // Taking it away and saying it again an hour later is.
+    await saveLeaning(her.kit, 'soft.massage', null)
+    await her.engine.sync()
+    await saveLeaning(her.kit, 'soft.massage', { lean: 'yes' })
+    await her.engine.sync()
+    expect(kinds()).toEqual(['matched', 'matched'])
+  })
+
+  it('the reminder comes at the minute she chose, to her alone, once, and says nothing about anything', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(Date.now() + 86_400_000 - (Date.now() % 86_400_000) + 19 * 3_600_000 + 59 * 60_000)) // tomorrow, 19:59 UTC
+    const zurich = (offsetMinutes: number) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(Date.now() + offsetMinutes * 60_000))
+    await notifications(her, 'mia-phone').control.turnOn()
+    await notifications(him, 'leo-phone').control.turnOn()
+    await updateMyProfile(her.kit, { prefs: { checkin: { remind: true, times: ['07:15', zurich(1)] } } })
+    await updateMyProfile(him.kit, { prefs: { checkin: { remind: false, times: [zurich(1), zurich(1)] } } })
+    await her.engine.sync()
+    await him.engine.sync()
+
+    cloud.tick()
+    expect(cloud.sentPushes()).toEqual([])
+    vi.setSystemTime(new Date(Date.now() + 60_000))
+    cloud.tick()
+    cloud.tick()
+    expect(cloud.sentPushes()).toMatchObject([{ memberId: herId, ttl: 3 * 3600, message: { type: 'checkin', title: 'A moment for you', body: 'How are you right now?', tag: 'checkin', url: '/checkin' } }])
+    vi.setSystemTime(new Date(Date.now() + 60_000))
+    cloud.tick()
+    expect(kinds()).toEqual(['checkin'])
+  })
+
+  it('what she notes in a check-in is no news to anybody', async () => {
+    await notifications(him, 'leo-phone').control.turnOn()
+    await saveCheckin(her.kit, { body: { mood: 2, desire: 5 }, share: ['mood', 'desire'] })
+    await her.engine.sync()
+    expect(cloud.sentPushes()).toEqual([])
   })
 })

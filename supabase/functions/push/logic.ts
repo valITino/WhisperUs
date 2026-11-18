@@ -12,10 +12,13 @@
 //
 // This file must stay self-contained: the function is deployed from this folder alone.
 
-export const PUSH_TYPES = ['sealed', 'opened', 'answered'] as const
+export const PUSH_TYPES = ['sealed', 'opened', 'answered', 'wished', 'decided', 'matched', 'checkin'] as const
 /**
  * sealed: something was sealed for you and waits.   opened: something opened for you.
  * answered: the other one answered what you opened for them.
+ * wished: the other one has a wish for you.   decided: the other one answered your wish.
+ * matched: the list has something new that both of you answered openly.
+ * checkin: the moment you asked to be reminded of, to note how you are. Only ever for yourself.
  */
 export type PushType = (typeof PUSH_TYPES)[number]
 export type Lang = 'en' | 'de'
@@ -28,11 +31,19 @@ export const isPushType = (value: unknown): value is PushType => PUSH_TYPES.incl
 export interface PushEvent {
   type: PushType
   householdId: string
-  /** The member who did it. They are never told about it themselves. */
+  /**
+   * The member who did it. They are never told about it themselves. The one exception is
+   * "checkin": there it is the member who asked to be reminded, and nobody else hears of it.
+   */
   actorId: string
-  /** The envelope it is about. */
-  envelopeId: string
+  /** The envelope it is about (sealed, opened, answered). */
+  envelopeId?: string
+  /** The wish it is about (wished, decided). */
+  wishId?: string
 }
+
+const ABOUT_ENVELOPE: readonly PushType[] = ['sealed', 'opened', 'answered']
+const ABOUT_WISH: readonly PushType[] = ['wished', 'decided']
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const uuid = (value: unknown): string | null => (typeof value === 'string' && UUID.test(value) ? value.toLowerCase() : null)
@@ -43,9 +54,16 @@ export function parseEvent(body: unknown): PushEvent | null {
   const raw = body as Record<string, unknown>
   const householdId = uuid(raw.household_id)
   const actorId = uuid(raw.actor_id)
-  const envelopeId = uuid(raw.envelope_id)
-  if (!isPushType(raw.type) || !householdId || !actorId || !envelopeId) return null
-  return { type: raw.type, householdId, actorId, envelopeId }
+  if (!isPushType(raw.type) || !householdId || !actorId) return null
+  if (ABOUT_ENVELOPE.includes(raw.type)) {
+    const envelopeId = uuid(raw.envelope_id)
+    return envelopeId ? { type: raw.type, householdId, actorId, envelopeId } : null
+  }
+  if (ABOUT_WISH.includes(raw.type)) {
+    const wishId = uuid(raw.wish_id)
+    return wishId ? { type: raw.type, householdId, actorId, wishId } : null
+  }
+  return { type: raw.type, householdId, actorId }
 }
 
 // ------------------------------------------------------- which events fire --
@@ -83,6 +101,52 @@ export function keyEvent(opensAt: number, now: number, siblingsOpenedAt: readonl
   return siblingsOpenedAt.some((other) => other <= now && now - other < SAME_OPENING_MS) ? null : 'opened'
 }
 
+/** A wish as far as "is this news?" cares. */
+export interface WishChange {
+  deleted: boolean
+  /** The decision of its answer, "" for an answer without one, null while there is no answer. */
+  decision: string | null
+}
+
+/**
+ * What a change to a wish is worth telling. A new wish is "wished". An answer is
+ * "decided", and so is a decision that changes later (a "not now" that becomes a "yes"
+ * is news). Rewording the why of an answer is not.
+ */
+export function wishEvent(before: WishChange | null, after: WishChange): PushType | null {
+  if (after.deleted) return null
+  if (!before) return 'wished'
+  if (after.decision !== null && after.decision !== before.decision) return 'decided'
+  return null
+}
+
+/** For this long after "something in common" was told, more of it is not told again. */
+export const MATCH_QUIET_MS = 10 * 60_000
+
+/**
+ * Whether an open answer on the list is worth telling the other one: it just became
+ * open (new, or back after being taken away), the other one has answered that item
+ * openly too, and they were not told about another one a moment ago (somebody going
+ * through the list must not make the other phone buzz twenty times).
+ */
+export function matchEvent(becameOpen: boolean, otherIsOpen: boolean, lastToldAt: number | null, now: number): PushType | null {
+  if (!becameOpen || !otherIsOpen) return null
+  return lastToldAt !== null && now - lastToldAt < MATCH_QUIET_MS ? null : 'matched'
+}
+
+/** "08:30" on the room's clock. */
+export function roomClock(at: Date): string {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(at)
+}
+
+/** Whether a profile asked to be reminded to check in at this minute. Anything misshapen is a no. */
+export function checkinDue(prefs: unknown, at: Date): boolean {
+  const checkin = (prefs as { checkin?: { remind?: unknown; times?: unknown } } | null)?.checkin
+  if (!checkin || checkin.remind !== true || !Array.isArray(checkin.times)) return false
+  const clock = roomClock(at)
+  return checkin.times.slice(0, 2).includes(clock)
+}
+
 // ------------------------------------------------------------ still true? --
 
 /** An envelope as far as a notification cares. Nothing of its content, nothing of its outside. */
@@ -106,17 +170,36 @@ const within = (at: string | null, ms: number, now: Date): boolean => at === nul
  * Events arrive a moment after the change, sometimes much later (a phone that was offline
  * for days sends everything at once). Old news is not worth a notification.
  */
-export function worthTelling(event: PushEvent, envelope: Outside | null, now: Date): boolean {
-  if (!envelope || envelope.deleted) return false
+export function worthTelling(event: PushEvent, envelope: Outside | null, now: Date, wish: WishOutside | null = null): boolean {
   switch (event.type) {
     case 'sealed':
       // Still sealed: once something in it is open, "opened" has said so already.
-      return envelope.authorId === event.actorId && envelope.waiting === 0 && within(envelope.createdAt, 48 * HOUR, now)
+      return alive(envelope) && envelope.authorId === event.actorId && envelope.waiting === 0 && within(envelope.createdAt, 48 * HOUR, now)
     case 'opened':
-      return envelope.authorId === event.actorId && envelope.waiting > 0 && within(envelope.openedAt, 24 * HOUR, now)
+      return alive(envelope) && envelope.authorId === event.actorId && envelope.waiting > 0 && within(envelope.openedAt, 24 * HOUR, now)
     case 'answered':
-      return envelope.authorId !== event.actorId && envelope.repliedAt !== null && within(envelope.repliedAt, 48 * HOUR, now)
+      return alive(envelope) && envelope.authorId !== event.actorId && envelope.repliedAt !== null && within(envelope.repliedAt, 48 * HOUR, now)
+    case 'wished':
+      // Still waiting for its answer.
+      return alive(wish) && wish.authorId === event.actorId && wish.answeredAt === null && within(wish.createdAt, 48 * HOUR, now)
+    case 'decided':
+      return alive(wish) && wish.authorId !== event.actorId && wish.answeredAt !== null && within(wish.answeredAt, 48 * HOUR, now)
+    case 'matched':
+    case 'checkin':
+      // Told at the moment it happens, and about nothing that could have changed since.
+      return true
   }
+}
+
+const alive = <T extends { deleted: boolean }>(thing: T | null): thing is T => thing !== null && !thing.deleted
+
+/** A wish as far as a notification cares. Not its words, not the decision. */
+export interface WishOutside {
+  deleted: boolean
+  authorId: string
+  createdAt: string | null
+  /** When it was answered (last). Null while it waits. */
+  answeredAt: string | null
 }
 
 // ----------------------------------------------------------- who gets told --
@@ -142,9 +225,12 @@ export interface Device {
 /** The language a profile reads in. English unless it says German. */
 export const langOf = (prefs: unknown): Lang => ((prefs as { lang?: unknown } | null)?.lang === 'de' ? 'de' : 'en')
 
-/** Everybody but the one who did it, on every device that did not mute this kind of news. */
+/**
+ * Everybody but the one who did it, on every device that did not mute this kind of news.
+ * A reminder to check in is the other way round: only the one who asked for it.
+ */
 export function audience(event: PushEvent, people: readonly Person[], devices: readonly Device[]): { person: Person; device: Device }[] {
-  const listening = people.filter((person) => person.id !== event.actorId && !person.paused)
+  const listening = people.filter((person) => (event.type === 'checkin' ? person.id === event.actorId : person.id !== event.actorId) && !person.paused)
   const seen = new Set<string>()
   const out: { person: Person; device: Device }[] = []
   for (const device of devices) {
@@ -201,6 +287,14 @@ export function words(type: PushType, lang: Lang, facts: Facts): { title: string
         return { title: 'Es ist offen', body: `Der Umschlag von ${who} ist jetzt offen für dich.` }
       case 'answered':
         return { title: 'Eine Antwort für dich', body: `${who} hat auf deinen Umschlag geantwortet.` }
+      case 'wished':
+        return { title: 'Ein Wunsch für dich', body: `${who} hat einen Wunsch für dich.` }
+      case 'decided':
+        return { title: 'Eine Antwort auf deinen Wunsch', body: `${who} hat auf deinen Wunsch geantwortet.` }
+      case 'matched':
+        return { title: 'Etwas Gemeinsames', body: `Du und ${who} habt etwas Neues gemeinsam.` }
+      case 'checkin':
+        return { title: 'Ein Moment für dich', body: 'Wie geht es dir gerade?' }
     }
   }
   switch (type) {
@@ -210,6 +304,14 @@ export function words(type: PushType, lang: Lang, facts: Facts): { title: string
       return { title: 'It is open', body: `${who}'s envelope is open for you now.` }
     case 'answered':
       return { title: 'An answer for you', body: `${who} answered your envelope.` }
+    case 'wished':
+      return { title: 'A wish for you', body: `${who} has a wish for you.` }
+    case 'decided':
+      return { title: 'An answer to your wish', body: `${who} answered your wish.` }
+    case 'matched':
+      return { title: 'Something in common', body: `You and ${who} have something new in common.` }
+    case 'checkin':
+      return { title: 'A moment for you', body: 'How are you right now?' }
   }
 }
 
@@ -220,7 +322,7 @@ export interface PushMessage {
   type: PushType
   title: string
   body: string
-  /** One per envelope: a newer notification about the same envelope replaces the older one. */
+  /** One per envelope or wish: a newer notification about the same one replaces the older one. */
   tag: string
   /** The page a tap opens, as an in-app route. */
   url: string
@@ -231,22 +333,32 @@ export interface Delivery {
   message: PushMessage
   /** "high" wakes a sleeping phone at once. An opening is a moment: it should not arrive late. */
   urgency: 'normal' | 'high'
-  /** Push services keep only the newest waiting message per topic: one per envelope. */
+  /** Push services keep only the newest waiting message per topic: one per envelope or wish. */
   topic: string
   /** How long the push service keeps trying to deliver, in seconds. */
   ttl: number
 }
 
-const TTL_HOURS: Record<PushType, number> = { sealed: 48, opened: 24, answered: 48 }
+/** A reminder that arrives hours late is no reminder: it is dropped after three. */
+const TTL_HOURS: Record<PushType, number> = { sealed: 48, opened: 24, answered: 48, wished: 48, decided: 48, matched: 48, checkin: 3 }
 
 /** The page a tap opens. */
 export const routeFor = (envelopeId: string): string => `/envelope/${envelopeId}`
+
+/** Where an event leads, and what replaces what: one notification per envelope, per wish, for the list, for the reminder. */
+function placeOf(event: PushEvent): { tag: string; url: string; topic: string } {
+  if (event.envelopeId) return { tag: `envelope-${event.envelopeId}`, url: routeFor(event.envelopeId), topic: event.envelopeId.replaceAll('-', '') }
+  if (event.wishId) return { tag: `wish-${event.wishId}`, url: `/wishes/${event.wishId}`, topic: event.wishId.replaceAll('-', '') }
+  return event.type === 'checkin' ? { tag: 'checkin', url: '/checkin', topic: 'checkin' } : { tag: 'list', url: '/list', topic: 'list' }
+}
 
 /** Everything the function looked up about the room for one event. */
 export interface Room {
   people: readonly Person[]
   devices: readonly Device[]
   envelope: Outside | null
+  /** For news about a wish. */
+  wish?: WishOutside | null
 }
 
 /**
@@ -258,18 +370,19 @@ export function plan(event: PushEvent, room: Room, now: Date): Delivery[] {
   // An event about a room the actor does not sit in is not ours to announce.
   if (!actor) return []
   const { envelope } = room
-  if (!envelope || !worthTelling(event, envelope, now)) return []
+  if (!worthTelling(event, envelope, now, room.wish ?? null)) return []
+  const { tag, url, topic } = placeOf(event)
 
   return audience(event, room.people, room.devices).map(({ person, device }) => {
     const said = words(event.type, person.lang, {
       actor: actor.name,
-      when: envelope.openMode === 'at' ? whenWords(envelope.opensAt, now, person.lang) : '',
+      when: envelope?.openMode === 'at' ? whenWords(envelope.opensAt, now, person.lang) : '',
     })
     return {
       device,
-      message: { type: event.type, ...said, tag: `envelope-${event.envelopeId}`, url: routeFor(event.envelopeId) },
+      message: { type: event.type, ...said, tag, url },
       urgency: event.type === 'opened' ? 'high' : 'normal',
-      topic: event.envelopeId.replaceAll('-', ''),
+      topic,
       ttl: TTL_HOURS[event.type] * 3600,
     }
   })

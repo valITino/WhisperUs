@@ -3,9 +3,12 @@
 // never sent would be lost: those are sent first, and if some are still waiting the
 // person is asked, with the number. The same goes for envelopes whose inside has not
 // left this device yet (sealed here, to be opened by hand): they exist nowhere else.
+// And for what somebody noted about themselves and did not show: the diary is on this
+// device only.
 
 import { useState, type ReactNode } from 'react'
 import { db, logOut, sync } from '../../data/app'
+import { diaryOnlyHere } from '../../data/queries'
 import { isBackendError } from '../../data/backend'
 import { useCopy } from '../../i18n'
 import { pairingCopy } from './copy'
@@ -34,7 +37,7 @@ export function useLogOut(): LogOut {
   const c = useCopy(pairingCopy)
   const explain = useExplain()
   const [working, setWorking] = useState(false)
-  const [asking, setAsking] = useState<{ unsent: number; held: number } | null>(null)
+  const [asking, setAsking] = useState<{ unsent: number; held: number; diary: number } | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
 
   const really = async () => {
@@ -60,10 +63,10 @@ export function useLogOut(): LogOut {
       setWorking(false)
       return setProblem(c.logOut.needsConnection)
     }
-    const held = await heldHere()
-    if (waiting() > 0 || held > 0) {
+    const [held, diary] = await Promise.all([heldHere(), diaryOnlyHere()])
+    if (waiting() > 0 || held > 0 || diary > 0) {
       setWorking(false)
-      return setAsking({ unsent: waiting(), held })
+      return setAsking({ unsent: waiting(), held, diary })
     }
     await really()
   }
@@ -80,6 +83,7 @@ export function useLogOut(): LogOut {
     >
       {asking && asking.unsent > 0 && <p>{c.logOut.loseBody(asking.unsent)}</p>}
       {asking && asking.held > 0 && <p>{c.logOut.loseHeld(asking.held)}</p>}
+      {asking && asking.diary > 0 && <p data-testid="lose-diary">{c.logOut.loseDiary(asking.diary)}</p>}
     </ConfirmSheet>
   )
 

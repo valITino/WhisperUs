@@ -2,12 +2,13 @@
 // was, and whether it was new, an edit or a removal. The Sync page turns this into words;
 // the sync engine holds the two ways out ("Try again", "Discard").
 //
-// Nothing from inside an envelope is ever shown here: only what kind of thing it was.
+// Nothing from inside an envelope, a check-in or a wish is ever shown here: only what kind
+// of thing it was.
 
 import type { DeadLetter } from './db'
 import type { ISO, SyncTable } from './types'
 
-export type RefusedThing = 'envelope' | 'key' | 'voice' | 'profile' | 'room'
+export type RefusedThing = 'envelope' | 'key' | 'voice' | 'profile' | 'room' | 'note' | 'leaning' | 'idea' | 'wish'
 
 export interface RefusedChange {
   /** Its number in the list of refused changes: what "Try again" and "Discard" ask for. */
@@ -24,6 +25,10 @@ const THINGS: Record<SyncTable, RefusedThing> = {
   envelopes: 'envelope',
   keys: 'key',
   media: 'voice',
+  notes: 'note',
+  leanings: 'leaning',
+  ideas: 'idea',
+  wishes: 'wish',
 }
 
 export function describeRefused(letter: DeadLetter): RefusedChange {

@@ -45,6 +45,84 @@ admin opens no envelope. What is sealed stays sealed for both of you alike.
 Your partner opens the link (or taps **I have a code** and types the code), goes through
 the same steps and taps **Join the room**. A room holds two people and no more.
 
+## A first look at yourself
+
+Right after signing up the app asks each of you a few things, alone. It takes about
+three minutes, every step can be passed, and **Later** leaves at once (the room keeps it
+for you).
+
+1. **Six questions about you.** How easy is it to say what you would like? When does
+   desire show up for you? Each is a step between two poles, never a grade: there is no
+   good answer and no bad one, only where you stand today. Add a why if you like.
+2. **A first walk through the list** (see below).
+3. **When shall the app ask how you are?** Two moments of the day, and whether you want
+   a reminder.
+
+Under every question stands **Who sees this?** The answer that is already chosen is
+**Only me**. Everything is found again later: the questions (five more of them) under
+**Cockpit, About me**.
+
+## The check-in
+
+Twice a day, a minute each time. The room offers it (**Check in**), and so does a
+reminder if you switched one on.
+
+- **What it asks:** how much energy you have, how the day feels, how close you feel to
+  each other, how open you are for closeness right now, how much desire there is, how
+  kinky you feel, how often sex crossed your mind and whether something from the list
+  was on it, what there was since last time, **and why**: what helped, what got in the
+  way. Every line is optional.
+- **Who sees it:** only you, unless you choose **… too** and tap the parts that may be
+  seen. You can show how open you are for closeness and keep the rest. What you show of
+  today stands on your partner's room ("Slow today, please"), so that they know before
+  they ask.
+- **One per half of a day.** Checking in again changes it. The day turns at four in the
+  morning.
+- **The times** are under **Us, Check-in times**. A reminder is off until you switch it
+  on, goes to your own devices only, and says "How are you right now?" and nothing else.
+
+## The list
+
+Under **Wishes, The list**: things to say **I would like that**, **I am curious**,
+**Only in my head** or **Not for me** to, each of you alone, with how strong the pull is
+and why.
+
+- **Something shows for both of you only where both answered openly** (one of the first
+  three). Then you each see what the other one said and how strong it is for them.
+- **A "Not for me" never leaves your phone.** Your partner never sees it, and neither
+  does the cloud.
+- **Keep this one to myself** keeps an answer on your phone; it can meet nothing.
+- Your why is read by your partner only if you say so, and only where you two meet.
+- The app comes with twelve groups of plainly named things, from tenderness to
+  restraint. Nothing in it is explicit. **Write your own** puts something on the list in
+  your words; your partner sees it there, not what you answer.
+
+## Wishes
+
+**Make a wish:** what you would like, in your own words, how much you want it, and why.
+Say whether you would like the two of you to do it, or whether it is a fantasy that may
+stay one. A wish is **not sealed**: your partner reads it as soon as you send it. For
+what should wait, there is the booth.
+
+Your partner answers: **Yes, I am in**, **Not now. Ask me again**, **Let us talk first**
+or **Not for me**, with a word to go with it ("I like that you asked"), what it does to
+them, and a why. A "not now" can become a "yes" later. While a wish waits you can reword
+it; once it is answered it stays as it was answered. **Take it back** makes it disappear
+for both of you, answer included.
+
+## The cockpit
+
+What was noted, looked at over 7 days, 30 days or 3 months.
+
+- **Mine:** everything you noted, as far as this phone has it. How the days went, how
+  often sex was on your mind and which fantasy, how often you felt kinky, what there
+  was, what was behind it, and what tends to go with more desire. Only you see it.
+- **Ours:** only what each of you chose to show. Both of you see the same page.
+
+It is a notebook, not a scoreboard. A day without a check-in is simply not there, there
+are no targets, tendencies appear only once there is enough to go on, and nobody's no is
+ever counted. Tap a column to read it out in words.
+
 ## The booth
 
 The wax seal in the middle of the bar leads into the booth. Three steps, and nothing
@@ -102,7 +180,17 @@ have to watch a clock, on either side.
   the cloud, like your names and status lines. Do not put on the outside what belongs
   inside.
 - **Notifications say who and when, never what.** "Mia sealed something. It opens tonight
-  at 22:00." Not the line on the envelope, not a word from inside.
+  at 22:00." Not the line on the envelope, not a word from inside. "Leo answered your
+  wish.", not what he answered.
+- **What you note about yourself stays on your phone.** A check-in, an answer about
+  yourself, an answer on the list: all of it is kept on the phone you noted it on and
+  nowhere else. Only the parts you show are sent. That also means: it exists on that one
+  phone. Logging that phone out loses it, and the app warns you before it does. On a
+  second device of yours you see only what you showed.
+- **What you show is readable in the cloud,** like the outside of an envelope: a shown
+  part of a check-in, an open answer on the list, a wish and its answer. Your partner's
+  phone gets an answer on the list only where you two meet; whoever owns the cloud
+  project could look, on purpose. A "Not for me" is not there to be looked at.
 
 ## Keep curious eyes out
 
@@ -117,9 +205,10 @@ stored on it.
 ## Notifications
 
 Each phone decides for itself. Open **Us, Notifications**, tap **Turn on notifications**
-and then **Allow** when Chrome asks. You then hear about three things: something was
-sealed for you, an envelope opened for you, and your envelope was answered. Every kind has
-its own switch.
+and then **Allow** when Chrome asks. You then hear when something was sealed for you,
+when an envelope opened for you, when your envelope was answered, when your partner has
+a wish for you or answered yours, when the list has something new in common, and, if you
+asked for it, when it is time to check in. Every kind has its own switch.
 
 ## When something is off
 
@@ -129,6 +218,11 @@ online at the same time.
 
 **Your partner does not see what you sealed.** Open **Us, Sync details**. The page says in
 plain words what is going on and what to do. **Sync now** tries right away.
+
+**"Waiting for an update of the cloud".** The app is newer than the room's cloud: wishes,
+the list and what you show of a check-in need an update there. Nothing is lost. It waits
+on your phone and goes out by itself once whoever looks after the cloud has done it
+("Updating the cloud" below).
 
 **"Changes the cloud refused".** Rare. Each refused change is listed on the same page by
 what kind of thing it was (never by what was in it), with **Try again** and **Discard**.
@@ -158,14 +252,15 @@ search engines to stay away.
 
 ### Connecting the cloud (once)
 
-This room's cloud is connected: the project is called `whisperus` and lives in Zurich
-(set up on 13 November 2026, steps 1, 2, 4, 6 and 7). **Two switches are yours to flip,
-steps 3 and 5.** The whole list stays here for whoever sets up a room of their own.
+This room's cloud is connected and the room is open: the project is called `whisperus`
+and lives in Zurich (set up on 13 November 2026, brought up to date on 17 November 2026,
+see "Updating the cloud"). The whole list stays here for whoever sets up a room of their
+own.
 
 1. **Supabase:** create a new project (the free plan is enough) in a region near you.
-2. **Database:** apply the three files in `supabase/migrations`, in order
-   (`0001_room.sql`, `0002_envelopes.sql`, `0003_push.sql`), in the SQL editor or with the
-   Supabase CLI. The first file switches on the two extensions it needs.
+2. **Database:** apply the files in `supabase/migrations`, in order (`0001_room.sql`,
+   `0002_envelopes.sql`, `0003_push.sql`, `0004_closer.sql`), in the SQL editor or with
+   the Supabase CLI. The first file switches on the two extensions it needs.
 3. **Logins:** Authentication, Sign In / Providers: turn on **Allow anonymous sign-ins**.
    The app has no email or password. Each device gets its own invisible login, and people
    are recognised by their name and PIN. Without this switch nobody can open or join the room.
@@ -174,8 +269,9 @@ steps 3 and 5.** The whole list stays here for whoever sets up a room of their o
    design. Never the secret key.
 5. **GitHub:** Settings, Pages, Build and deployment, Source: **GitHub Actions**. Every
    change on `main` is then published by itself.
-6. **Check the rules:** paste `supabase/tests/seal_test.sql` and
-   `supabase/tests/security_test.sql` into the SQL editor. Each prints a report and rolls
+6. **Check the rules:** paste `supabase/tests/seal_test.sql`,
+   `supabase/tests/security_test.sql` and `supabase/tests/closer_test.sql` into the SQL
+   editor. Each prints a report and rolls
    itself back: every line should start with `ok`. To check that the live database is
    what the files say, statement for statement, run `supabase/tests/local/digest.sql`
    there and compare with `bash supabase/tests/local/run.sh digest`: the ten lines must
@@ -186,6 +282,31 @@ steps 3 and 5.** The whole list stays here for whoever sets up a room of their o
    A GitHub workflow pings as well.
 
 Then open the room. Whoever opens it is its admin.
+
+### Updating the cloud (wishes, the list, the check-in)
+
+This room's cloud is up to date: `supabase/migrations/0004_closer.sql` was applied on
+17 November 2026 and the notification function was deployed again the same day. The
+steps stay here for whoever runs a room of their own on an older database. Until they
+are done, everything from before works, the new things work on each phone, and what
+would travel between the phones waits (the Sync page shows "Waiting for an update of
+the cloud").
+
+1. **Apply** `supabase/migrations/0004_closer.sql` as it is, in one piece, in the SQL
+   editor. It adds four tables and their rules, four kinds of notification and the minute
+   job for the check-in reminder. It changes nothing about envelopes.
+2. **Check that the database is what the files say:** run
+   `supabase/tests/local/digest.sql` there and compare with
+   `bash supabase/tests/local/run.sh digest`: the ten lines must be the same.
+3. **Check the rules:** paste `supabase/tests/closer_test.sql`. It prints
+   `CLOSER REPORT (rolled back)` and 39 lines that should all start with `ok`. It builds
+   its own throwaway room, sends nothing and rolls everything back.
+4. **Deploy the notification function again** (as in
+   `supabase/functions/push/README.md`, "What is deployed right now"), so that it knows
+   the four new kinds. Until then the old one keeps announcing envelopes and answers
+   "not an event" to the rest.
+
+The phones notice by themselves: the next time the app is opened, what waited goes out.
 
 ### Switching notifications on (once)
 
@@ -209,8 +330,10 @@ app. It lets a person back into their seat. It opens no sealed envelope.
 ### What you can see as the owner, and what you cannot
 
 You can open the database. You see that envelopes exist, who sealed them and when, the
-line on the outside, and the answers. You do not see what is inside a sealed envelope:
-those are locked bytes. Keys of envelopes that wait for a time are in the `keys` table
+line on the outside, and the answers. You see what each of you chose to show: shown parts
+of check-ins, open answers on the list, wishes and their answers. You do not see what
+anybody kept to themselves (it is on their phone, not here), and never a "Not for me".
+You do not see what is inside a sealed envelope: those are locked bytes. Keys of envelopes that wait for a time are in the `keys` table
 until the time comes; reading them there would be a deliberate act. See
 [DECISIONS.md](DECISIONS.md), "The seal", for the whole picture.
 
@@ -223,7 +346,7 @@ data.
 npm install
 npm run dev         # http://localhost:5173, with a pretend cloud built into the dev server
 npm run typecheck
-npm test            # unit tests: the seal, sync, log-in and admin rules, notifications, the lock
+npm test            # unit tests: the seal, sync, log-in and admin rules, notifications, the lock, closer
 npm run e2e         # Playwright at Android size: two phones against the pretend cloud
 npm run build:test  # a production build wired to an address that leads nowhere ...
 npm run e2e:pwa     # ... for the installed-app tests: offline start, update note, push, lock
@@ -241,9 +364,9 @@ Development never touches real data: `npm run dev` and all tests use a pretend c
 
 | Folder | What lives there |
 | --- | --- |
-| `src/data` | Types, local database, the seal, envelopes, outbox, sync engine, actions, Supabase adapter |
+| `src/data` | Types, local database, the seal, envelopes, the diary and what is shown of it, wishes, the cockpit's arithmetic, outbox, sync engine, actions, Supabase adapter |
 | `src/ui` | Design tokens, components and the drawings (seal, envelope, signs) |
-| `src/features` | Screens, one folder per part of the app: booth, envelope, home, why, lock, voice, onboarding, settings |
+| `src/features` | Screens, one folder per part of the app: booth, envelope, home, why, lock, voice, onboarding, settings, hello (the first look), about, checkin, list, wishes, cockpit, share |
 | `src/i18n` | Shared English and German words. Feature copy lives next to the feature |
 | `src/lib` | Dates and moments in words (the room lives in Europe/Zurich) |
 | `src/sw`, `src/pwa` | The service worker: offline start, updates, notifications |

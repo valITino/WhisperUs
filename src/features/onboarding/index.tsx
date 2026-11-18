@@ -243,7 +243,8 @@ export function Onboarding({ route, lockedOut }: { route: Route; lockedOut: bool
     const { code: inviteCode, peek } = peeked
     setProblem(null)
     setBusy(kind)
-    navigate('/', { replace: true })
+    // Somebody new starts with a first look at themselves; somebody coming back goes to the room.
+    navigate(kind === 'join' ? '/hello' : '/', { replace: true })
     try {
       await joinWithCode(inviteCode, kind === 'join' ? toProfileInput(setup.profile) : { name: '' }, pin)
       clearSetup()

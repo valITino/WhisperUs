@@ -4,19 +4,28 @@
 import { useEffect, useRef } from 'react'
 import { boot, useSyncStatus } from '../data/app'
 import { useMe } from '../data/hooks'
-import { useReadyCount } from '../data/queries'
+import { useReadyCount, useWishesCount } from '../data/queries'
+import { AboutScreen } from '../features/about/AboutScreen'
 import { BoothScreen } from '../features/booth'
+import { CheckinScreen } from '../features/checkin/CheckinScreen'
+import { CockpitScreen } from '../features/cockpit/CockpitScreen'
 import { EnvelopeScreen } from '../features/envelope'
+import { HelloScreen } from '../features/hello/HelloScreen'
 import { HomeScreen } from '../features/home'
+import { ListScreen } from '../features/list/ListScreen'
 import { LockScreen, useLocked } from '../features/lock'
 import { Onboarding, PausedScreen, usePaused } from '../features/onboarding'
 import { SettingsRoutes } from '../features/settings'
+import { WishFormScreen } from '../features/wishes/WishForm'
+import { WishScreen } from '../features/wishes/WishScreen'
+import { WishesScreen } from '../features/wishes/WishesScreen'
 import { Loader, Screen, TabBar, Toaster, type TabId } from '../ui/components'
 import { currentPath, matchPath, navigate, useRoute } from './router'
 import { startSettingsSync } from './settingsSync'
 
-export const TAB_PATHS: Record<TabId, string> = { home: '/', us: '/settings' }
-const TAB_BY_PATH = Object.fromEntries(Object.entries(TAB_PATHS).map(([id, path]) => [path, id])) as Record<string, TabId>
+export const TAB_PATHS: Record<TabId, string> = { home: '/', wishes: '/wishes', cockpit: '/cockpit', us: '/settings' }
+/** The pages that show the bar. The cockpit has two, under one tab. */
+const TAB_BY_PATH: Record<string, TabId> = { ...(Object.fromEntries(Object.entries(TAB_PATHS).map(([id, path]) => [path, id])) as Record<string, TabId>), '/cockpit/us': 'cockpit' }
 
 export function Shell() {
   const route = useRoute()
@@ -26,6 +35,8 @@ export function Shell() {
   const locked = useLocked()
   // From any tab: a number on the room says something opened for you.
   const ready = useReadyCount()
+  // And a number on the wishes: one to open, an answer, something new in common.
+  const wishing = useWishesCount()
   const { path } = route
 
   useEffect(() => {
@@ -85,10 +96,21 @@ export function Shell() {
 
   const tab = TAB_BY_PATH[path]
   const envelope = matchPath('/envelope/:id', path)
+  const wish = matchPath('/wishes/:id', path)
+  const wishEdit = matchPath('/wishes/:id/edit', path)
   let page
   if (tab === 'home') page = <HomeScreen />
+  else if (tab === 'wishes') page = <WishesScreen />
+  else if (tab === 'cockpit') page = <CockpitScreen view={path === '/cockpit/us' ? 'ours' : 'mine'} />
   else if (path === '/booth') page = <BoothScreen />
   else if (envelope) page = <EnvelopeScreen key={envelope.id} id={envelope.id} />
+  else if (path === '/hello') page = <HelloScreen />
+  else if (path === '/checkin') page = <CheckinScreen />
+  else if (path === '/about') page = <AboutScreen />
+  else if (path === '/list') page = <ListScreen />
+  else if (path === '/wishes/new') page = <WishFormScreen />
+  else if (wishEdit) page = <WishFormScreen key={wishEdit.id} id={wishEdit.id} />
+  else if (wish) page = <WishScreen key={wish.id} id={wish.id} />
   else if (path.startsWith('/settings')) page = <SettingsRoutes route={route} />
   else page = null
 
@@ -105,7 +127,7 @@ export function Shell() {
   return (
     <>
       {page}
-      {tab && <TabBar active={tab} onSelect={(id) => navigate(TAB_PATHS[id], { replace: true })} onSeal={() => navigate('/booth')} badges={tab === 'home' ? {} : { home: ready }} />}
+      {tab && <TabBar active={tab} onSelect={(id) => navigate(TAB_PATHS[id], { replace: true })} onSeal={() => navigate('/booth')} badges={{ ...(tab === 'home' ? {} : { home: ready }), ...(tab === 'wishes' ? {} : { wishes: wishing }) }} />}
       <Toaster />
     </>
   )

@@ -1,19 +1,24 @@
 # Push notifications: switching them on
 
 The other one gets a notification when something was sealed for them, when an envelope
-opens for them, and when their envelope was answered.
+opens for them, and when their envelope was answered. Since `0004_closer.sql` also when
+there is a wish for them, when their wish was answered, and when the list has something
+new that both answered openly. And each of them gets their own reminder to check in, if
+they asked for one.
 
 **A notification says who and when, never what.** It is read on a lock screen, by anybody
 who picks the phone up. So the words never carry what is inside an envelope, nor the line
 on its outside: "Mia sealed something. It opens tonight at 22:00." The function does not
-even ask the database for those columns, and never for a key.
+even ask the database for those columns, and never for a key. Of a wish it asks who and
+when, never its words, its why or what was decided; of the list it asks nothing at all.
 
 How it travels:
 
-1. A change reaches the database. A trigger (`supabase/migrations/0003_push.sql`) notices
-   one of the three events and asks `pg_net` to call this function once the change is
-   saved. For an envelope that opens at a time, a job that runs every minute
-   (`private.announce_due`) does the same when the time has come.
+1. A change reaches the database. A trigger (`supabase/migrations/0003_push.sql`,
+   `0004_closer.sql`) notices one of the events and asks `pg_net` to call this function
+   once the change is saved. For an envelope that opens at a time, a job that runs every
+   minute (`private.announce_due`) does the same when the time has come; another
+   (`private.remind_checkins`) sends the check-in reminders at the minutes people chose.
 2. This function looks up who should hear about it (the other person, on every device
    that did not mute this kind), checks that the news is still true, writes the words in
    their language and sends each device one Web Push message, signed with the room's
@@ -123,7 +128,7 @@ was done. Wait ten seconds and run step 4 again.
 ### 6. Turn them on, on each phone
 
 Us, Notifications, "Turn on notifications", then "Allow" when Chrome asks. Each device
-is turned on by itself, and each can mute any of the three kinds. No new version of the
+is turned on by itself, and each can mute any of the kinds. No new version of the
 app is needed.
 
 ## Checking that it works
@@ -191,21 +196,30 @@ five minutes.
 
 Switched on for the live project (`whisperus`, Zurich) on 13 November 2026:
 
-- The three migrations are applied. They went in through a connector in thirteen parts
+- The first three migrations are applied. They went in through a connector in thirteen parts
   (the migration history in the dashboard lists them as `room_01_…` to `push_03_…`); the
   schema fingerprint (`supabase/tests/local/digest.sql`) is the same on the live project
   and on a database built from the files, and `seal_test.sql` passed there with 29 of 29.
 - The function `push` is deployed with JWT verification off, as a one-line loader that
   imports this folder's `index.ts` from GitHub at one fixed commit, so that what runs is
-  exactly what was tested and nothing was copied by hand:
+  exactly what was tested and nothing was copied by hand. Since 17 November 2026
+  (version 2) that is the commit which knows all seven kinds:
 
   ```ts
-  import 'https://raw.githubusercontent.com/valITino/WhisperUs/6ff70f22006622cd55514fd9846a724d80f43970/supabase/functions/push/index.ts'
+  import 'https://raw.githubusercontent.com/valITino/WhisperUs/e55c209ed486e67934cb30c46a5e46d89af7cd9c/supabase/functions/push/index.ts'
   ```
+
+  (Version 1, from 13 November, named `6ff70f22006622cd55514fd9846a724d80f43970`.)
 
 - `private.push_setup` was run and the keys were made. The function answered `200` to
   `init`, and `401 wrong_secret` to a call without the secret and to one with a wrong one.
 - A real notification on a real phone is still to be seen.
+- `0004_closer.sql` is applied (17 November 2026, as `closer_01_notes_list_wishes`, in one
+  piece); the fingerprint is again the same on the live project and on a database built
+  from the files. After the new version went out, the function answered `401 wrong_secret`
+  to a call without the secret and `405` to a GET. `closer_test.sql` passed there with 39
+  of 39 on 18 November 2026, run by the owner in the SQL editor. The four new kinds have
+  not been seen on a phone yet.
 
 To ship a change to the function: commit and push it, then deploy the loader again with the
 new commit in the address. Pasting the single file from `npm run build:push` works too.

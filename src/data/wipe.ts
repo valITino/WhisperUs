@@ -8,8 +8,9 @@ const KEY = 'whisperus.wipeOnStart'
 
 /**
  * What belongs to the person who was logged in, kept outside the database: the app lock
- * of this device (a forgotten code must not lock the next login out) and words still
- * waiting in the booth. Language and light stay: they say nothing about anybody.
+ * of this device (a forgotten code must not lock the next login out), words still
+ * waiting in the booth, and this device's settings (the lock's timing, what was last
+ * shown of a check-in). Language and light stay: they say nothing about anybody.
  */
 export const PERSONAL_SLOTS = ['whisperus.lock', 'whisperus.boothDraft', 'whisperus.prefs'] as const
 

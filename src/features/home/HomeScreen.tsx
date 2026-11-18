@@ -2,15 +2,21 @@
 
 import { navigate } from '../../app/router'
 import { useSyncStatus } from '../../data/app'
+import { updateMyPrefs } from '../../data/do'
 import type { EnvelopeView } from '../../data/envelopes'
-import { useEnvelopes, useNewAnswers, useRoom } from '../../data/queries'
-import type { Member } from '../../data/types'
-import { useCopy, useLang } from '../../i18n'
-import { zurichHour } from '../../lib/dates'
-import { inWords } from '../../lib/when'
-import { Avatar, Button, Card, cx, EmptyState, Loader, Screen, SyncPill, Tag } from '../../ui/components'
+import { parseSlot, slotRef } from '../../data/journal'
+import { useCheckins, useEnvelopes, useNewAnswers, useRoom, useSlot } from '../../data/queries'
+import { CHECKIN_SCALES, nowIso, type Member } from '../../data/types'
+import { useCopy, useLang, useT } from '../../i18n'
+import { formatTime, zurichHour } from '../../lib/dates'
+import { dayAndTime, inWords } from '../../lib/when'
+import { Avatar, Button, Card, cx, EmptyState, Loader, Screen, SyncPill, Tag, toast } from '../../ui/components'
 import { Candle, Envelope } from '../../ui/deco/Deco'
 import { Icon } from '../../ui/deco/Icon'
+import { checkinCopy } from '../checkin/copy'
+import { SCALES } from '../checkin/library'
+import { stepWords } from '../checkin/words'
+import { helloCopy } from '../hello/copy'
 import { ProfileBubble } from '../profile/ProfileBubble'
 import { homeCopy } from './copy'
 
@@ -62,12 +68,18 @@ function EnvelopeRow({ view, partner, fresh }: { view: EnvelopeView; partner: Me
 
 export function HomeScreen() {
   const c = useCopy(homeCopy)
+  const cc = useCopy(checkinCopy).home
+  const hc = useCopy(helloCopy).card
+  const lang = useLang()
+  const t = useT()
   const room = useRoom()
   const envelopes = useEnvelopes()
   const newAnswers = useNewAnswers()
   const status = useSyncStatus()
+  const slot = useSlot()
+  const checkins = useCheckins()
 
-  if (!room || !envelopes) {
+  if (!room || !envelopes || !checkins) {
     return (
       <Screen tabs className="grid place-items-center">
         <Loader />
@@ -80,6 +92,12 @@ export function HomeScreen() {
   const nothing = forMe.length === 0 && fromMe.length === 0
   // The pill only speaks up when there is something to know.
   const quiet = (status.state === 'idle' || status.state === 'syncing') && status.pending + status.uploads === 0 && status.stuck === 0
+  // My check-in of this half of the day, if I made one.
+  const mine = checkins.mine.find((entry) => entry.ref === slotRef(slot))
+  // What the other one chose to show of today: the evening before the morning.
+  const shown = checkins.theirs.filter((entry) => parseSlot(entry.ref)?.day === slot.day)
+  const theirs = shown.find((entry) => entry.ref.endsWith('.pm')) ?? shown[0]
+  const theirScales = theirs ? CHECKIN_SCALES.filter((scale) => theirs.body[scale] !== undefined) : []
 
   return (
     <Screen tabs>
@@ -112,6 +130,62 @@ export function HomeScreen() {
               )}
             </div>
             <Candle size={72} lit={false} className="shrink-0" />
+          </Card>
+        )}
+
+        {partner && theirs && theirScales.length > 0 && (
+          <Card tone="note" pad={false} className="p-5" data-testid="their-day">
+            <h2 className="text-lg">{cc.theirs(partner.name)}</h2>
+            <p className="mt-0.5 text-xs font-semibold text-ink-soft">{dayAndTime(theirs.at, lang, t.common)}</p>
+            <dl className="mt-3 flex flex-col gap-1.5">
+              {theirScales.map((scale) => (
+                <div key={scale} className="flex flex-wrap items-baseline justify-between gap-x-4">
+                  <dt className="text-sm font-semibold text-ink-soft">{SCALES[scale][lang].short}</dt>
+                  <dd className="text-sm font-bold">{stepWords(scale, theirs.body[scale] as number, lang)}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+        )}
+
+        {mine ? (
+          <div className="-my-2 flex items-center justify-between gap-3 px-1" data-testid="checkin-done">
+            <p className="text-sm font-semibold text-ink-soft">{cc.done(formatTime(mine.at, lang))}</p>
+            <Button variant="quiet" onClick={() => navigate('/checkin')}>
+              {cc.change}
+            </Button>
+          </div>
+        ) : (
+          <Card pad={false} className="flex items-center gap-3 p-4" data-testid="checkin-card">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg">{cc.ask}</h2>
+              <p className="mt-1 text-sm leading-snug text-ink-soft">{cc.askBody}</p>
+              <Button variant="secondary" className="mt-3" onClick={() => navigate('/checkin')}>
+                {cc.action}
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {!me.prefs.firstLook && (
+          <Card tone="haze" pad={false} className="p-4" data-testid="hello-card">
+            <h2 className="text-lg">{hc.title}</h2>
+            <p className="mt-1 text-sm leading-snug">{hc.body}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Button variant="secondary" onClick={() => navigate('/hello')}>
+                {hc.action}
+              </Button>
+              {/* An offer, not a nudge: it can be declined, and then it is gone. */}
+              <Button
+                variant="quiet"
+                onClick={() => {
+                  void updateMyPrefs({ firstLook: nowIso() })
+                  toast(hc.declined)
+                }}
+              >
+                {hc.decline}
+              </Button>
+            </div>
           </Card>
         )}
 

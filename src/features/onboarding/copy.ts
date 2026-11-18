@@ -105,6 +105,8 @@ export const pairingCopy = {
       loseBody: (unsent: number) => `${unsent === 1 ? '1 change' : `${unsent} changes`} on this device never reached the cloud. If you log out now, ${unsent === 1 ? 'it is' : 'they are'} lost.`,
       loseHeld: (n: number) =>
         `${n === 1 ? '1 envelope you sealed here has' : `${n} envelopes you sealed here have`} not been opened yet. What is inside exists only on this device: if you log out now, it is gone, and the envelope can never be opened. Open ${n === 1 ? 'it' : 'them'} or take ${n === 1 ? 'it' : 'them'} back first.`,
+      loseDiary: (n: number) =>
+        `${n === 1 ? '1 thing you noted about yourself is' : `${n} things you noted about yourself are`} kept on this device only (check-ins, answers about yourself, answers on the list that you did not show). If you log out now, ${n === 1 ? 'it is' : 'they are'} gone.`,
       loseConfirm: 'Log out anyway',
       stay: 'Stay logged in',
     },
@@ -251,6 +253,8 @@ export const pairingCopy = {
       loseBody: (unsent: number) => `${unsent === 1 ? '1 Änderung' : `${unsent} Änderungen`} auf diesem Gerät ${unsent === 1 ? 'kam' : 'kamen'} nie in der Cloud an. Wenn du dich jetzt abmeldest, ${unsent === 1 ? 'ist sie' : 'sind sie'} weg.`,
       loseHeld: (n: number) =>
         `${n === 1 ? '1 Umschlag, den du hier versiegelt hast, ist' : `${n} Umschläge, die du hier versiegelt hast, sind`} noch nicht geöffnet. Der Inhalt existiert nur auf diesem Gerät: Wenn du dich jetzt abmeldest, ist er weg, und der Umschlag lässt sich nie mehr öffnen. Öffne ${n === 1 ? 'ihn' : 'sie'} zuerst oder nimm ${n === 1 ? 'ihn' : 'sie'} zurück.`,
+      loseDiary: (n: number) =>
+        `${n === 1 ? '1 Sache, die du über dich notiert hast, liegt' : `${n} Sachen, die du über dich notiert hast, liegen`} nur auf diesem Gerät (Check-ins, Antworten über dich, Antworten auf der Liste, die du nicht gezeigt hast). Wenn du dich jetzt abmeldest, ${n === 1 ? 'ist sie' : 'sind sie'} weg.`,
       loseConfirm: 'Trotzdem abmelden',
       stay: 'Angemeldet bleiben',
     },

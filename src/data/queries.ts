@@ -8,6 +8,8 @@ import { META } from './db'
 import { byAttention, nextChange, viewOf, type EnvelopeView } from './envelopes'
 import { alive } from './hooks'
 import { keptHere, matchesOf, mine, myLeanings, slotOf, theirs, type Match, type MyLeaning, type Noted, type Slot } from './journal'
+import { freshCount, latest, newsOf, shownNotes, theirIdeas, type NewsItem } from './news'
+import { shownBy, type Shown } from './profile'
 import { describeRefused, type RefusedChange } from './refused'
 import { MAX_UPLOAD_ATTEMPTS } from './sync'
 import type { AboutBody, CheckinBody, Household, ID, Member } from './types'
@@ -135,13 +137,6 @@ export async function markAnswerSeen(envelopeId: ID, repliedAt: string): Promise
   await db.setMeta(ANSWERS_SEEN, { ...seen, [envelopeId]: repliedAt })
 }
 
-/** How many envelopes ask for my attention: something new to open, or a new answer. */
-export function useReadyCount(): number {
-  const views = useViews()
-  const answers = useNewAnswers()
-  return (views?.filter((v) => v.standing === 'ready').length ?? 0) + (answers?.size ?? 0)
-}
-
 // ------------------------------------------------ closer: notes, the list, wishes --
 
 interface CloserRows {
@@ -154,13 +149,15 @@ interface CloserRows {
   answersSeen: Record<ID, string>
   wishesSeen: Record<ID, true>
   matchesSeen: string[]
+  aboutSeen: string | null
+  ideasSeen: string | null
 }
 
 function useCloserRows(): CloserRows | null | undefined {
   return useLiveQuery(async () => {
     const meId = await db.getMeta<ID>(META.memberId)
     if (!meId) return null
-    const [diary, notes, leanings, ideas, wishes, answersSeen, wishesSeen, matchesSeen] = await Promise.all([
+    const [diary, notes, leanings, ideas, wishes, answersSeen, wishesSeen, matchesSeen, aboutSeen, ideasSeen] = await Promise.all([
       db.diary.toArray(),
       db.notes.toArray(),
       db.leanings.toArray(),
@@ -169,8 +166,10 @@ function useCloserRows(): CloserRows | null | undefined {
       db.getMeta<Record<ID, string>>(META.answersSeen),
       db.getMeta<Record<ID, true>>(META.wishesSeen),
       db.getMeta<string[]>(META.matchesSeen),
+      db.getMeta<string>(META.aboutSeen),
+      db.getMeta<string>(META.ideasSeen),
     ])
-    return { meId, diary, notes, leanings, ideas, wishes, answersSeen: answersSeen ?? {}, wishesSeen: wishesSeen ?? {}, matchesSeen: matchesSeen ?? [] }
+    return { meId, diary, notes, leanings, ideas, wishes, answersSeen: answersSeen ?? {}, wishesSeen: wishesSeen ?? {}, matchesSeen: matchesSeen ?? [], aboutSeen: aboutSeen ?? null, ideasSeen: ideasSeen ?? null }
   }, [])
 }
 
@@ -301,11 +300,104 @@ export async function markWishAnswerSeen(id: ID, answeredAt: string): Promise<vo
   if (seen[id] !== answeredAt) await db.setMeta(META.answersSeen, { ...seen, [id]: answeredAt })
 }
 
-/** How much under "Wishes" asks for my attention: wishes to open, new answers, new things in common. */
-export function useWishesCount(): number {
-  const wishes = useWishes()
-  const list = useList()
-  return (wishes?.unopened.size ?? 0) + (wishes?.freshAnswers.size ?? 0) + (list?.fresh.size ?? 0)
+// ----------------------------------------------------------------- the news --
+
+export interface News {
+  /** Everything worth a line, newest first. */
+  items: NewsItem[]
+  /** How many things have not been looked at yet: the number on the bell. */
+  fresh: number
+  /** The same number, by the tab that leads to them. Together they are the bell's. */
+  byTab: { home: number; wishes: number }
+}
+
+/** Wishes and the list are under "Wishes"; envelopes and the other one's profile are reached from the room. */
+const UNDER_WISHES: readonly NewsItem['kind'][] = ['wished', 'decided', 'matched', 'idea']
+
+/** What is new in the room, and what was lately. One list for the bell, the room and the news page. */
+export function useNews(): News | undefined {
+  const views = useViews()
+  const rows = useRows()
+  const closer = useCloserRows()
+  const replies = useLiveQuery(async () => (await db.getMeta<SeenAnswers>(ANSWERS_SEEN)) ?? {}, [])
+  return useMemo(() => {
+    if (!views || rows === undefined || closer === undefined || !replies) return undefined
+    if (!rows || !closer) return { items: [], fresh: 0, byTab: { home: 0, wishes: 0 } }
+    const items = newsOf(
+      {
+        meId: closer.meId,
+        views,
+        keys: rows.keys,
+        wishes: closer.wishes,
+        matches: matchesOf(closer.leanings, closer.meId),
+        notes: closer.notes,
+        ideas: closer.ideas,
+        seen: { replies, wishAnswers: closer.answersSeen, wishes: closer.wishesSeen, matches: closer.matchesSeen, aboutUntil: closer.aboutSeen, ideasUntil: closer.ideasSeen },
+      },
+      Date.now(),
+    )
+    const wishes = freshCount(items.filter((item) => UNDER_WISHES.includes(item.kind)))
+    const fresh = freshCount(items)
+    return { items, fresh, byTab: { home: fresh - wishes, wishes } }
+  }, [views, rows, closer, replies])
+}
+
+/** I have looked at what the other one showed about themselves (their profile was on screen). */
+export async function markAboutSeen(): Promise<void> {
+  const meId = await db.getMeta<ID>(META.memberId)
+  if (!meId) return
+  const until = latest(shownNotes(await db.notes.toArray(), meId, 'about').map((note) => note.updatedAt))
+  if (until && until !== (await db.getMeta<string>(META.aboutSeen))) await db.setMeta(META.aboutSeen, until)
+}
+
+/** I have looked at what the other one wrote onto the list (the list was on screen). */
+export async function markIdeasSeen(): Promise<void> {
+  const meId = await db.getMeta<ID>(META.memberId)
+  if (!meId) return
+  const until = latest(theirIdeas(await db.ideas.toArray(), meId).map((idea) => idea.updatedAt))
+  if (until && until !== (await db.getMeta<string>(META.ideasSeen))) await db.setMeta(META.ideasSeen, until)
+}
+
+// -------------------------------------------------------------- the profiles --
+
+export interface Profile {
+  /** Whose profile it is. */
+  who: Member
+  /** The other of the two. Null while the second seat is empty. */
+  other: Member | null
+  mine: boolean
+  /** What they show the other one: exactly what has left their phone. */
+  shown: Shown
+  /** What they sealed, what asks for attention first. */
+  envelopes: EnvelopeView[]
+  /** The answers about themselves I have not looked at yet, by question (the other one's profile only). */
+  freshAbout: Set<string>
+}
+
+/**
+ * A profile to look at: mine (what the other one sees of me) or the other one's (what
+ * they show me). Null when there is nobody to show (no partner yet, or not logged in).
+ */
+export function useProfile(side: 'mine' | 'theirs'): Profile | null | undefined {
+  const room = useRoom()
+  const closer = useCloserRows()
+  const views = useViews()
+  return useMemo(() => {
+    if (room === undefined || closer === undefined || !views) return undefined
+    if (!room || !closer) return null
+    const who = side === 'mine' ? room.me : room.partner
+    if (!who) return null
+    const shown = shownBy(who.id, closer)
+    const until = closer.aboutSeen === null ? null : Date.parse(closer.aboutSeen)
+    return {
+      who,
+      other: side === 'mine' ? room.partner : room.me,
+      mine: side === 'mine',
+      shown,
+      envelopes: views.filter((view) => view.envelope.authorId === who.id).sort(byAttention),
+      freshAbout: new Set(side === 'mine' ? [] : [...shown.about.values()].filter((answer) => until === null || Date.parse(answer.changedAt) > until).map((answer) => answer.ref)),
+    }
+  }, [room, closer, views, side])
 }
 
 /** How many entries of the diary hold something that exists on this phone only. */

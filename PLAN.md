@@ -44,6 +44,18 @@ it together before the next one starts.
         what was on the mind and how often, what there was, what was behind it, and what
         tends to go with more desire. A notebook, not a scoreboard.
       Migration `0004_closer.sql` with its rule test; four more kinds of notification.
+- [x] **The way through** (18 November 2026, after the first days of use; DECISIONS.md,
+      section 13). No milestone of its own: what M1 to M3 built, made findable.
+      - **News.** A bell on the room with the number of things not looked at yet, the
+        newest of them right under it, and a News page with all of them and what came
+        before. A line says who and what kind of thing, never what is in it, and there is
+        no line for "the other one read it". The numbers on the tabs come from the same
+        list.
+      - **A profile for each of the two.** The other one's: what they chose to show (how
+        they are, their answers, what is in common, their wishes, what they sealed). My
+        own: exactly what the other one sees of me, drawn from the same rows. A tap on a
+        picture opens a profile; editing is one step further. "Us" begins with the two.
+      No change to the database: everything is read from rows the phones already have.
 - [ ] **M4 Dirty talk cards.** A deck the two of you write in a card editor. She draws a
       card, says it out loud if she wants, records it if she wants, says how it felt and
       why, seals it, and chooses what is revealed: only how it felt, or voice and all.

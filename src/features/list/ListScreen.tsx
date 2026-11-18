@@ -2,7 +2,7 @@
 // to answer, alone.
 
 import { useEffect } from 'react'
-import { markMatchesSeen, useList, usePartner } from '../../data/queries'
+import { markIdeasSeen, markMatchesSeen, useList, usePartner } from '../../data/queries'
 import { useCopy, useLang } from '../../i18n'
 import { Card, HeatMeter, Loader, Tag } from '../../ui/components'
 import { StepPage } from '../onboarding/parts'
@@ -24,6 +24,11 @@ export function ListScreen() {
     if (!freshKey) return
     return () => void markMatchesSeen(freshKey.split(','))
   }, [freshKey])
+  // What the other one wrote onto the list has been looked at once this page was shown.
+  const ideas = list?.ideas.length ?? 0
+  useEffect(() => {
+    if (ideas > 0) void markIdeasSeen()
+  }, [ideas])
 
   if (!list || partner === undefined) {
     return (

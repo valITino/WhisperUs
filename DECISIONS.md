@@ -440,6 +440,64 @@ match rule is the one of Spicer and similar apps.
   the database that looks once a minute, so it arrives within that minute, not on the
   second, and a minute the job misses is a reminder that does not come.
 
+## 13. The way through: news, and a profile to look at
+
+Added on 18 November 2026, after the first days of use. Three things were missing.
+Nothing said what was new, except a number on a tab. A tap on a picture led to a form.
+And what the other one had shown about themselves stood at the foot of a page about
+oneself, three taps from the room.
+
+### The news
+
+One list, read in three places: the bell on the room, the lines under it, and the News
+page (`src/data/news.ts`, pure and tested; `src/features/news`). It is the in-app side of
+the notifications and follows their rule (section 4). A line says who, what kind of thing
+and when, and leads to the thing itself. It never carries what is in it: not a wish's
+words, not what was decided, not the line on an envelope.
+
+- **No read receipts here either.** There is no line for "the other one opened what you
+  sealed" or "read your wish". The envelope's row does carry the moment a layer was first
+  opened (the cloud needs it to burn a layer after one opening), and the news leave it
+  alone. An answer is news. Reading is not.
+- **"New" lasts until the thing itself was looked at**, wherever one gets to it from.
+  Opening the News page marks nothing, so a line cannot be "read" without the wish, the
+  answer or the list having been seen. One mark serves the bell, the tabs and the page.
+  The marks are kept on the phone only: what somebody has looked at is about that screen,
+  not about the two of them.
+- **Counted, and listed without a count.** Counted: an envelope open for me, an answer to
+  mine, a wish for me, an answer to my wish, new things in common, answers the other one
+  showed about themselves, things they wrote onto the list. Listed without a count: an
+  envelope that still waits (there is nothing to do yet) and a check-in with something
+  shown (it stands on the room already, and twice a day would turn the bell from a signal
+  into a habit).
+- **The numbers on the tabs are the same list, by place:** under "Wishes" what lives
+  there (wishes, the list), on "Room" the rest. Together they are the number on the bell.
+- What has been looked at stays listed for thirty days, twenty lines at most. The list
+  is made from the rows on the phone each time; nothing new is stored or sent for it.
+
+### A profile for each of the two
+
+Two pages, one drawing (`src/features/profile/ProfileScreen.tsx`, `src/data/profile.ts`).
+`/profile/partner` is what the other one chose to show me: how they are (their newest
+check-in with something shown, every shown part of it), their answers about themselves,
+where the two of us meet on the list, their wishes, what they sealed. `/profile` is my
+own, and it is drawn from the same rows: the ones that travel, never the diary. So the
+sentence on it, "This is what Leo sees of you", is true part by part. A unit test reads
+her profile from her phone and from his and compares the two.
+
+- A tap on a picture opens a profile. Changing name, picture and status line is one step
+  further ("Edit profile"), where it is expected.
+- "Us" begins with the two of them, each a card that opens their profile. The settings
+  follow.
+- What I keep to myself is not on my profile. The page says so and leads to where it
+  lives: the questions about me, the list, my cockpit.
+- The other one's answers moved from the foot of "About me" to their profile.
+
+Limits, as everywhere: "what Leo sees" means what has reached the cloud. While a change
+still waits on the phone (the room says so), the other phone is a step behind. And an
+open answer on the list that met nothing is on nobody's profile, though it is a plain
+row in the cloud like every open answer (section 12).
+
 ## Limits to know
 
 - **Android and Chrome first.** Recording, installing and notifications are tested there.

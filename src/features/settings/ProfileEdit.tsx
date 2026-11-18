@@ -1,4 +1,5 @@
-// "My profile": the same form as in onboarding, filled with what is saved.
+// "Edit profile": the same form as in onboarding, filled with what is saved. Reached
+// from the profile page (/profile), which is where the profile is looked at.
 
 import { useEffect, useState } from 'react'
 import { back } from '../../app/router'
@@ -44,13 +45,13 @@ export function ProfileEdit() {
     }
     buzz(12)
     toast(t.common.saved)
-    back('/settings')
+    back('/profile')
   }
 
   return (
     <StepPage
       title={c.profile.title}
-      backTo="/settings"
+      backTo="/profile"
       footer={
         draft && (
           <>

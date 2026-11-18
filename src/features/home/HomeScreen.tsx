@@ -1,24 +1,29 @@
-// The room: who is here, what waits for me, and what I sealed. The first of the two tabs.
+// The room: who is here, what is new, how I am, what waits for me, and what I sealed. The
+// first of the tabs, and the page the app opens on.
 
 import { navigate } from '../../app/router'
 import { useSyncStatus } from '../../data/app'
 import { updateMyPrefs } from '../../data/do'
-import type { EnvelopeView } from '../../data/envelopes'
 import { parseSlot, slotRef } from '../../data/journal'
-import { useCheckins, useEnvelopes, useNewAnswers, useRoom, useSlot } from '../../data/queries'
-import { CHECKIN_SCALES, nowIso, type Member } from '../../data/types'
+import { useCheckins, useEnvelopes, useNewAnswers, useNews, useRoom, useSlot } from '../../data/queries'
+import { CHECKIN_SCALES, nowIso } from '../../data/types'
 import { useCopy, useLang, useT } from '../../i18n'
 import { formatTime, zurichHour } from '../../lib/dates'
-import { dayAndTime, inWords } from '../../lib/when'
-import { Avatar, Button, Card, cx, EmptyState, Loader, Screen, SyncPill, Tag, toast } from '../../ui/components'
-import { Candle, Envelope } from '../../ui/deco/Deco'
+import { dayAndTime } from '../../lib/when'
+import { Avatar, Button, Card, EmptyState, Loader, Screen, SyncPill, toast } from '../../ui/components'
+import { Candle } from '../../ui/deco/Deco'
 import { Icon } from '../../ui/deco/Icon'
 import { checkinCopy } from '../checkin/copy'
 import { SCALES } from '../checkin/library'
 import { stepWords } from '../checkin/words'
 import { helloCopy } from '../hello/copy'
-import { ProfileBubble } from '../profile/ProfileBubble'
+import { newsCopy } from '../news/copy'
+import { NewsBell, NewsList } from '../news/NewsList'
 import { homeCopy } from './copy'
+import { EnvelopeRow } from './EnvelopeRow'
+
+/** How many new things the room itself lists before it points to the news. */
+const NEWS_HERE = 3
 
 function greetingKey(hour: number): 'morning' | 'day' | 'evening' | 'night' {
   if (hour < 5) return 'night'
@@ -26,50 +31,11 @@ function greetingKey(hour: number): 'morning' | 'day' | 'evening' | 'night' {
   return hour < 18 ? 'day' : 'evening'
 }
 
-function EnvelopeRow({ view, partner, fresh }: { view: EnvelopeView; partner: Member; fresh: boolean }) {
-  const c = useCopy(homeCopy).card
-  const lang = useLang()
-  const { envelope, standing } = view
-  const when = view.nextOpening ? inWords(view.nextOpening, lang) : null
-
-  let line: string
-  if (standing === 'ready') line = view.layers.some((l) => l.seenAt) ? c.readyMore : c.ready
-  else if (standing === 'waiting') line = when ? c.waitingAt(when) : c.waitingHand(partner.name)
-  else if (standing === 'opened') line = view.answered ? c.openedAnswered : c.opened
-  else if (view.answered) line = c.answered(partner.name)
-  else if (standing === 'out') line = c.out(partner.name)
-  else line = when ? c.sealedAt(when) : c.sealedHand
-
-  const asks = standing === 'ready' || fresh
-  const title = envelope.teaser?.trim()
-  const open = standing === 'opened' || standing === 'out'
-
-  return (
-    <li>
-      <button
-        type="button"
-        data-testid="envelope-row"
-        data-standing={standing}
-        aria-label={c.open(`${title ?? c.plain}. ${line}`)}
-        onClick={() => navigate(`/envelope/${envelope.id}`)}
-        className={cx('flex w-full items-center gap-3.5 rounded-card border bg-surface p-3 text-left active:translate-y-[2px]', asks ? 'border-accent' : 'border-line')}
-      >
-        <Envelope size={54} state={open ? 'open' : 'sealed'} className="shrink-0 drop-shadow-[0_3px_5px_#2c1b3333]" />
-        <span className="min-w-0 flex-1">
-          {title ? <span className="handwritten block truncate text-[1.3rem] leading-tight text-accent">{title}</span> : <span className="block truncate text-sm font-semibold text-ink-soft">{c.plain}</span>}
-          <span className={cx('mt-0.5 block text-xs leading-snug', asks ? 'font-bold text-ink' : 'font-semibold text-ink-soft')}>{line}</span>
-        </span>
-        {fresh && <Tag tone="wax">{c.newAnswer}</Tag>}
-        <Icon name="next" size={20} className="shrink-0 text-ink-soft" />
-      </button>
-    </li>
-  )
-}
-
 export function HomeScreen() {
   const c = useCopy(homeCopy)
   const cc = useCopy(checkinCopy).home
   const hc = useCopy(helloCopy).card
+  const nc = useCopy(newsCopy)
   const lang = useLang()
   const t = useT()
   const room = useRoom()
@@ -78,6 +44,7 @@ export function HomeScreen() {
   const status = useSyncStatus()
   const slot = useSlot()
   const checkins = useCheckins()
+  const news = useNews()
 
   if (!room || !envelopes || !checkins) {
     return (
@@ -98,15 +65,19 @@ export function HomeScreen() {
   const shown = checkins.theirs.filter((entry) => parseSlot(entry.ref)?.day === slot.day)
   const theirs = shown.find((entry) => entry.ref.endsWith('.pm')) ?? shown[0]
   const theirScales = theirs ? CHECKIN_SCALES.filter((scale) => theirs.body[scale] !== undefined) : []
+  const fresh = news?.items.filter((item) => item.fresh) ?? []
 
   return (
     <Screen tabs>
       <header className="app-column px-5 pb-2 pt-[max(1.75rem,env(safe-area-inset-top))]">
         <div className="flex items-start justify-between gap-3">
           <h1 className="min-w-0 text-2xl">{c.greeting[greetingKey(zurichHour())](me.name)}</h1>
-          <button type="button" aria-label={me.name} onClick={() => navigate('/settings/profile')} className="shrink-0 rounded-full">
-            <Avatar avatar={me.avatar} color={me.color} accessory={me.accessory} size={44} />
-          </button>
+          <div className="flex shrink-0 items-center gap-3">
+            <NewsBell count={news?.fresh ?? 0} />
+            <button type="button" data-testid="my-avatar" aria-label={c.myProfile} onClick={() => navigate('/profile')} className="shrink-0 rounded-full">
+              <Avatar avatar={me.avatar} color={me.color} accessory={me.accessory} size={44} />
+            </button>
+          </div>
         </div>
         {!quiet && (
           <div className="mt-3">
@@ -117,7 +88,33 @@ export function HomeScreen() {
 
       <main className="app-column flex flex-col gap-7 px-4 pt-3" data-testid="home">
         {partner ? (
-          partner.status && <ProfileBubble name={partner.name} status={partner.status} placeholder="" avatar={partner.avatar} color={partner.color} accessory={partner.accessory} />
+          // The other one: who they are, and what they showed of today. A tap opens their profile.
+          <Card pad={false} className="overflow-hidden" data-testid="partner-strip">
+            <button type="button" data-testid="partner-row" onClick={() => navigate('/profile/partner')} className="flex w-full items-center gap-3.5 p-3.5 text-left active:bg-haze/40">
+              <Avatar avatar={partner.avatar} color={partner.color} accessory={partner.accessory} size={52} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-display text-lg font-semibold leading-tight">{partner.name}</span>
+                {partner.status && <span className="mt-0.5 block break-words text-sm font-bold leading-snug">{partner.status}</span>}
+              </span>
+              {/* Read aloud after the name and status, so what is seen is also what is said. */}
+              <span className="sr-only">{c.openProfile}</span>
+              <Icon name="next" size={20} className="shrink-0 text-ink-soft" />
+            </button>
+            {theirs && theirScales.length > 0 && (
+              <div className="border-t border-line bg-haze/60 px-4 pb-4 pt-3.5" data-testid="their-day">
+                <h2 className="text-base">{cc.theirs(partner.name)}</h2>
+                <p className="mt-0.5 text-xs font-semibold text-ink-soft">{dayAndTime(theirs.at, lang, t.common)}</p>
+                <dl className="mt-2.5 flex flex-col gap-1.5">
+                  {theirScales.map((scale) => (
+                    <div key={scale} className="flex flex-wrap items-baseline justify-between gap-x-4">
+                      <dt className="text-sm font-semibold text-ink-soft">{SCALES[scale][lang].short}</dt>
+                      <dd className="text-sm font-bold">{stepWords(scale, theirs.body[scale] as number, lang)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+          </Card>
         ) : (
           <Card pad={false} className="flex items-center gap-3 p-4" data-testid="home-alone">
             <div className="min-w-0 flex-1">
@@ -133,19 +130,19 @@ export function HomeScreen() {
           </Card>
         )}
 
-        {partner && theirs && theirScales.length > 0 && (
-          <Card tone="note" pad={false} className="p-5" data-testid="their-day">
-            <h2 className="text-lg">{cc.theirs(partner.name)}</h2>
-            <p className="mt-0.5 text-xs font-semibold text-ink-soft">{dayAndTime(theirs.at, lang, t.common)}</p>
-            <dl className="mt-3 flex flex-col gap-1.5">
-              {theirScales.map((scale) => (
-                <div key={scale} className="flex flex-wrap items-baseline justify-between gap-x-4">
-                  <dt className="text-sm font-semibold text-ink-soft">{SCALES[scale][lang].short}</dt>
-                  <dd className="text-sm font-bold">{stepWords(scale, theirs.body[scale] as number, lang)}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
+        {fresh.length > 0 && (
+          // What is new, wherever in the app it is. The bell has all of it.
+          <section aria-labelledby="home-news" data-testid="home-news">
+            <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
+              <h2 id="home-news" className="text-lg">
+                {nc.fresh}
+              </h2>
+              <Button variant="quiet" className="-mr-3" onClick={() => navigate('/news')}>
+                {nc.all}
+              </Button>
+            </div>
+            <NewsList items={fresh.slice(0, NEWS_HERE)} partner={partner?.name ?? null} />
+          </section>
         )}
 
         {mine ? (

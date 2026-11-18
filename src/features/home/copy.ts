@@ -1,10 +1,11 @@
 export const homeCopy = {
   en: {
+    // A greeting that does not fit on one line breaks before the name, not inside the salutation.
     greeting: {
-      morning: (name: string) => `Good morning, ${name}`,
+      morning: (name: string) => `Good\u00a0morning, ${name}`,
       day: (name: string) => `Hello, ${name}`,
-      evening: (name: string) => `Good evening, ${name}`,
-      night: (name: string) => `Still up, ${name}?`,
+      evening: (name: string) => `Good\u00a0evening, ${name}`,
+      night: (name: string) => `Still\u00a0up, ${name}?`,
     },
     alone: {
       title: 'One seat is still free',
@@ -17,6 +18,8 @@ export const homeCopy = {
       body: 'The booth is open whenever one of you is ready. Nothing in it leaves your phone until you say so.',
       action: 'Step into the booth',
     },
+    myProfile: 'Your profile',
+    openProfile: 'Open profile',
     forMe: 'For you',
     fromMe: 'From you',
     noneForMe: (name: string) => `Nothing from ${name} yet. No hurry.`,
@@ -40,10 +43,10 @@ export const homeCopy = {
   },
   de: {
     greeting: {
-      morning: (name: string) => `Guten Morgen, ${name}`,
+      morning: (name: string) => `Guten\u00a0Morgen, ${name}`,
       day: (name: string) => `Hallo, ${name}`,
-      evening: (name: string) => `Guten Abend, ${name}`,
-      night: (name: string) => `Noch wach, ${name}?`,
+      evening: (name: string) => `Guten\u00a0Abend, ${name}`,
+      night: (name: string) => `Noch\u00a0wach, ${name}?`,
     },
     alone: {
       title: 'Ein Platz ist noch frei',
@@ -56,6 +59,8 @@ export const homeCopy = {
       body: 'Die Kabine ist offen, sobald jemand von euch so weit ist. Nichts darin verlässt dein Handy, bevor du es sagst.',
       action: 'In die Kabine treten',
     },
+    myProfile: 'Dein Profil',
+    openProfile: 'Profil öffnen',
     forMe: 'Für dich',
     fromMe: 'Von dir',
     noneForMe: (name: string) => `Noch nichts von ${name}. Keine Eile.`,

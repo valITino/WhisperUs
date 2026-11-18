@@ -41,6 +41,12 @@ export const checkinCopy = {
       happened: 'What there was',
       why: 'My why',
     },
+    /** A check-in somebody showed, read on a profile. */
+    view: {
+      thoughts: 'Sex on the mind',
+      fantasies: 'On the mind',
+      happened: 'What there was',
+    },
     home: {
       ask: 'How are you right now?',
       askBody: 'A moment for you. What you note stays with you unless you choose to show it.',
@@ -105,6 +111,11 @@ export const checkinCopy = {
       fantasies: 'Was in meinem Kopf war',
       happened: 'Was es gab',
       why: 'Mein Warum',
+    },
+    view: {
+      thoughts: 'Sex im Kopf',
+      fantasies: 'Im Kopf',
+      happened: 'Was es gab',
     },
     home: {
       ask: 'Wie geht es dir gerade?',

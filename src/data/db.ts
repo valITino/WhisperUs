@@ -140,4 +140,8 @@ export const META = {
   matchesSeen: 'list.matchesSeen',
   /** The last time the first look at myself was finished or put off. */
   helloDone: 'hello.done',
+  /** Until which of the other one's changes I have looked at what they showed about themselves. */
+  aboutSeen: 'profile.aboutSeen',
+  /** Until which of the other one's items I have looked at what they wrote onto the list. */
+  ideasSeen: 'list.ideasSeen',
 } as const

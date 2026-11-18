@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
-import { skipFirstLook } from './ship.helpers'
+import { go, skipFirstLook } from './ship.helpers'
 
 // The start, logging in and the admin's controls, played by several devices against the
 // pretend cloud. Here he opens the room (so he is its admin) and she joins by link: the
@@ -507,8 +507,11 @@ test('the admin looks after the partner\'s seat: pause, switch on, let back in, 
   await test.step('her device shows the paused screen and keeps what she changed meanwhile', async () => {
     // She edits her status before her device has heard about the pause.
     await mia.getByTestId('my-profile').click()
+    await mia.getByRole('button', { name: 'Edit profile' }).click()
     await mia.getByRole('textbox', { name: 'Status line' }).fill('Paused but here')
     await mia.getByRole('button', { name: 'Save profile' }).click()
+    await expect(mia.getByTestId('profile-status')).toHaveText('Paused but here')
+    await go(mia, '/settings')
     await expect(mia.getByTestId('my-status')).toHaveText('Paused but here')
     await mia.context().setOffline(false)
     await syncNow(mia)

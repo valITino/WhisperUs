@@ -4,7 +4,7 @@
 import { useEffect, useRef } from 'react'
 import { boot, useSyncStatus } from '../data/app'
 import { useMe } from '../data/hooks'
-import { useReadyCount, useWishesCount } from '../data/queries'
+import { useNews } from '../data/queries'
 import { AboutScreen } from '../features/about/AboutScreen'
 import { BoothScreen } from '../features/booth'
 import { CheckinScreen } from '../features/checkin/CheckinScreen'
@@ -14,7 +14,9 @@ import { HelloScreen } from '../features/hello/HelloScreen'
 import { HomeScreen } from '../features/home'
 import { ListScreen } from '../features/list/ListScreen'
 import { LockScreen, useLocked } from '../features/lock'
+import { NewsScreen } from '../features/news/NewsScreen'
 import { Onboarding, PausedScreen, usePaused } from '../features/onboarding'
+import { ProfileScreen } from '../features/profile/ProfileScreen'
 import { SettingsRoutes } from '../features/settings'
 import { WishFormScreen } from '../features/wishes/WishForm'
 import { WishScreen } from '../features/wishes/WishScreen'
@@ -33,10 +35,10 @@ export function Shell() {
   const status = useSyncStatus()
   const paused = usePaused()
   const locked = useLocked()
-  // From any tab: a number on the room says something opened for you.
-  const ready = useReadyCount()
-  // And a number on the wishes: one to open, an answer, something new in common.
-  const wishing = useWishesCount()
+  // From any tab: a number on the room (something opened, an answer, something the other
+  // one showed) and one on the wishes (a wish, an answer, something new on the list).
+  // Together they are the number on the bell.
+  const news = useNews()
   const { path } = route
 
   useEffect(() => {
@@ -108,6 +110,9 @@ export function Shell() {
   else if (path === '/checkin') page = <CheckinScreen />
   else if (path === '/about') page = <AboutScreen />
   else if (path === '/list') page = <ListScreen />
+  else if (path === '/news') page = <NewsScreen />
+  else if (path === '/profile') page = <ProfileScreen key="mine" side="mine" />
+  else if (path === '/profile/partner') page = <ProfileScreen key="theirs" side="theirs" />
   else if (path === '/wishes/new') page = <WishFormScreen />
   else if (wishEdit) page = <WishFormScreen key={wishEdit.id} id={wishEdit.id} />
   else if (wish) page = <WishScreen key={wish.id} id={wish.id} />
@@ -127,7 +132,7 @@ export function Shell() {
   return (
     <>
       {page}
-      {tab && <TabBar active={tab} onSelect={(id) => navigate(TAB_PATHS[id], { replace: true })} onSeal={() => navigate('/booth')} badges={{ ...(tab === 'home' ? {} : { home: ready }), ...(tab === 'wishes' ? {} : { wishes: wishing }) }} />}
+      {tab && <TabBar active={tab} onSelect={(id) => navigate(TAB_PATHS[id], { replace: true })} onSeal={() => navigate('/booth')} badges={{ ...(tab === 'home' ? {} : { home: news?.byTab.home ?? 0 }), ...(tab === 'wishes' ? {} : { wishes: news?.byTab.wishes ?? 0 }) }} />}
       <Toaster />
     </>
   )

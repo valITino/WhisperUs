@@ -11,7 +11,8 @@
 --
 -- Safe next to a real room: it touches only its own rows, and nothing is ever sent.
 -- pg_net delivers after a commit, and this never commits. While it runs it points the
--- push settings at an address that does not exist; the rollback restores the real ones.
+-- push settings at an address that does not exist and gives them a secret of their own;
+-- the rollback restores the real ones. It empties no table: what it removes is its own.
 
 do $$
 declare
@@ -50,9 +51,10 @@ begin
     (m1, hh, 'Mia Closertest', true),
     (m2, hh, 'Leo Closertest', false);
   insert into private.member_devices (user_id, member_id) values (u1, m1), (u2, m2);
-  delete from private.push_config;
+  -- The settings row stays where it is. Until the rollback it points elsewhere and carries
+  -- a secret of its own, so the real one is not even written into a call that is never sent.
   perform private.push_setup(target, 'https://closer-test.invalid/app/');
-  delete from private.push_marks;
+  perform private.push_new_secret();
 
   execute 'set local role authenticated';
 
@@ -269,7 +271,6 @@ begin
   -- ------------------------------------------------------- the check-in reminder ----
   execute 'reset role';
   select count(*) into seen from net.http_request_queue where url = target;
-  delete from private.push_marks where kind = 'checkin';
   txt := to_char(now() at time zone 'Europe/Zurich', 'HH24:MI');
   update public.members set prefs = jsonb_build_object('checkin', jsonb_build_object('remind', true, 'times', jsonb_build_array('03:07', txt))) where id = m1;
   update public.members set prefs = jsonb_build_object('checkin', jsonb_build_object('remind', false, 'times', jsonb_build_array(txt, txt))) where id = m2;
@@ -279,7 +280,7 @@ begin
     case when n >= 1 and ev = jsonb_build_object('type', 'checkin', 'household_id', hh, 'actor_id', m1) and (select count(*) from net.http_request_queue where url = target) = seen + 1 then 'ok  ' else 'FAIL' end, n, ev ->> 'type');
   n := private.remind_checkins();
   report := report || format('%s 35 asking again within the same minute reminds nobody twice (%s more for this room)', case when (select count(*) from net.http_request_queue where url = target) = seen + 1 then 'ok  ' else 'FAIL' end, (select count(*) from net.http_request_queue where url = target) - seen - 1);
-  delete from private.push_marks where kind = 'checkin';
+  delete from private.push_marks where kind = 'checkin' and member_id in (m1, m2);
   update public.members set prefs = '{"checkin":"soon"}' where id = m1;
   update public.members set prefs = jsonb_build_object('checkin', jsonb_build_object('remind', true, 'times', txt)) where id = m2;
   begin

@@ -71,15 +71,14 @@ it together before the next one starts.
 - **The notification function** is deployed again (version 2), as the same one-line loader,
   now pinned to the commit that knows the four new kinds. It starts and refuses a call
   without the secret, as it should.
-- **Still to do on the live project:** run `supabase/tests/closer_test.sql` there once
-  (it builds a throwaway room and rolls itself back), **in the SQL editor**. Through the
-  connector it does not run: Supabase asks the owner to confirm SQL it takes to be
-  destructive, that question does not reach the owner's app (five tries on 17 and 18
-  November, each timed out after a minute, nothing ran), and it is asked even now that
-  the test empties no table (18 November: it removes only its own marks, and tries one
-  hard delete that the rules refuse). Do not disguise a statement to get past the
-  question. The same 39 cases pass on a local database built from the same files, also
-  next to an existing room, whose settings and marks are the same before and after.
+- **The rules hold on the live project too** (18 November 2026): the owner ran
+  `supabase/tests/closer_test.sql` in the SQL editor, 39 of 39. The push settings, the
+  marks and the counts of rooms, people, logins and devices were the same before and
+  after. A rule test goes into the SQL editor, not through the connector: Supabase asks
+  the owner to confirm SQL it takes to be destructive (any `delete`, also the one hard
+  delete the rules refuse), and that question does not reach the owner's app (five tries,
+  each timed out after a minute, nothing ran). Do not disguise a statement to get past
+  the question. Since 18 November the test empties no table: it removes only its own marks.
 - **The room is open.** On 17 November 2026 the live project held one room with two people
   and three devices, one of them signed up for notifications (counts only: nothing of the
   room was read). So anonymous sign-ins are switched on and the app is reachable.

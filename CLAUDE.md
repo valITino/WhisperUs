@@ -154,7 +154,10 @@ configs read the same variable). After changing `src/data/fake/cloudCore.ts` or
   before its migration, and how it can again. The pretend cloud plays such a cloud with
   `cloud.closer = false`.
 - The only tests that may run on the live project are the repository's own SQL rule tests
-  (`supabase/tests/*.sql`): they build throwaway rows and roll themselves back.
+  (`supabase/tests/*.sql`): they build throwaway rows and roll themselves back. The owner
+  pastes them into the SQL editor: through the connector Supabase asks for a confirmation
+  of anything with a `delete` in it, and that question does not reach the owner's app.
+  Never disguise a statement to get past it.
 - **What must not be readable by the project's owner is never sent.** Row-level security
   is not a seal: whoever owns the project can browse every table. Either seal it on the
   phone (envelopes) or keep it on the phone (the diary).

@@ -217,9 +217,9 @@ Switched on for the live project (`whisperus`, Zurich) on 13 November 2026:
 - `0004_closer.sql` is applied (17 November 2026, as `closer_01_notes_list_wishes`, in one
   piece); the fingerprint is again the same on the live project and on a database built
   from the files. After the new version went out, the function answered `401 wrong_secret`
-  to a call without the secret and `405` to a GET. The four new kinds have not been seen
-  on a phone yet, and `closer_test.sql` has not been run on the live project yet (PLAN.md,
-  "Open right now").
+  to a call without the secret and `405` to a GET. `closer_test.sql` passed there with 39
+  of 39 on 18 November 2026, run by the owner in the SQL editor. The four new kinds have
+  not been seen on a phone yet.
 
 To ship a change to the function: commit and push it, then deploy the loader again with the
 new commit in the address. Pasting the single file from `npm run build:push` works too.
